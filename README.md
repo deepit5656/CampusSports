@@ -52,34 +52,56 @@ lib/
 
 ### Prerequisites
 
-- Flutter SDK 3.0+
-- Dart SDK 3.0+
-- Firebase account
-- Android Studio or VS Code
+- Flutter SDK 3.0+ ([Install Flutter](https://docs.flutter.dev/get-started/install))
+- Dart SDK 3.0+ (comes with Flutter)
+- Android Studio or VS Code with Flutter extension
+- Git
 
-### Installation
+### Installation Steps
 
-1. Clone the repository
+1. **Clone the repository**
    ```bash
    git clone https://github.com/deepit5656/CampusSports.git
    cd CampusSports
    ```
 
-2. Install dependencies
+2. **Install Flutter dependencies**
    ```bash
    flutter pub get
    ```
 
-3. Configure Firebase
-   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-   - Add Android/iOS apps to your Firebase project
-   - Download `google-services.json` and place it in `android/app/`
-   - Run `flutterfire configure` to generate `firebase_options.dart`
+3. **Verify Flutter setup**
+   ```bash
+   flutter doctor
+   ```
+   Fix any issues reported before proceeding.
 
-4. Run the app
+4. **Run the app**
+   
+   For Android:
    ```bash
    flutter run
    ```
+   
+   For Chrome (Web):
+   ```bash
+   flutter run -d chrome
+   ```
+
+**Note:** The project already includes Firebase configuration files (`google-services.json` and `firebase_options.dart`), so Firebase is ready to use out of the box!
+
+### Admin Access
+
+To test admin features:
+1. Run the app and go to Profile tab
+2. Sign up with any email/password
+3. Contact the repository owner to upgrade your account to admin role
+
+### Troubleshooting
+
+- **Build errors**: Run `flutter clean` then `flutter pub get`
+- **Firebase errors**: Ensure you're connected to the internet
+- **Gradle errors**: Check your internet connection and try again
 
 ## 📱 Screenshots
 
