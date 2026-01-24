@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "606578270658",
+    "project_id": "sports-event-app-ec772",
+    "storage_bucket": "sports-event-app-ec772.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:606578270658:android:8e6c4ea190e696b3f3b65b",
+        "android_client_info": {
+          "package_name": "com.example.sports_event_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAivtjJizRu_SQ6Vy6mSNFLPPSM3rzF5xs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,59 +1,50 @@
-# Sports Event Manager 🏆
+# CampusSports 🏆
 
-A modern Flutter application for managing and displaying university sports event information with a stunning UI, smooth animations, and comprehensive admin features.
+A modern Flutter application for managing and displaying university sports event information with real-time updates and comprehensive admin features.
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)
 ![Dart](https://img.shields.io/badge/Dart-3.0+-blue.svg)
 ![Firebase](https://img.shields.io/badge/Firebase-Latest-orange.svg)
 
-## 🌟 Key Highlights
+## 🌟 Features
 
-- 🌐 **No Login Required** - Browse sports data freely without account
-- 🔐 **Admin Login Only** - Secure admin access for data management  
-- 📱 **Public Sports Information** - Everyone can view matches, standings, results
-- ⚡ **Real-time Updates** - Live score updates via Firebase Firestore
-
-## 📱 Features
-
-### Public Access (No Login)
-- 🏠 **Dashboard** - View all sports categories and recent matches
-- 🏅 **Sports Categories** - Browse matches by sport
-- 📊 **Standings** - View team rankings and points tables
-- 🎯 **Match Details** - Detailed match information with scores
-- 🔄 **Real-time Updates** - Live match data synchronization
+### Public Access (No Login Required)
+- Browse all sports categories and matches
+- View live match scores and schedules
+- Check team standings and rankings
+- Real-time data synchronization
 
 ### Admin Features (Login Required)
-- ⚽ **Manage Sports** - Add, edit, and delete sports categories
-- 👥 **Manage Teams** - Create and manage teams
-- 📅 **Manage Matches** - Schedule matches and update results
-- 🏆 **Update Standings** - Maintain points tables
-- 📊 **Dashboard** - Quick overview of all data
+- Manage sports categories
+- Create and manage teams
+- Schedule matches and update results
+- Maintain standings and points tables
 
-## 🎨 Design Features
+## 🛠️ Tech Stack
 
-- **Modern Dark Theme** - Sleek dark mode UI with vibrant gradients
-- **Smooth Animations** - Engaging micro-interactions throughout
-- **Responsive Cards** - Beautiful card-based layouts
-- **Custom Gradients** - Purple-blue primary, pink-red accent themes
-- **Glassmorphism Effects** - Modern blur and transparency effects
-- **Hero Animations** - Smooth transitions between screens
+- **Framework:** Flutter 3.0+
+- **State Management:** flutter_bloc
+- **Backend:** Firebase (Auth, Firestore, Storage)
+- **UI:** Custom gradients, animations, dark theme
 
 ## 🏗️ Architecture
 
-The app follows **Clean Architecture** principles with **BLoC** state management:
+Clean Architecture with BLoC pattern:
 
 ```
 lib/
 ├── core/
 │   ├── models/          # Data models
-│   ├── theme/           # App theme and colors
-│   └── utils/           # Constants and validators
+│   ├── theme/           # App theme
+│   └── utils/           # Utilities
 ├── features/
 │   ├── auth/            # Authentication
 │   │   ├── data/        # Repositories
 │   │   └── presentation/ # BLoC & UI
 │   ├── home/            # User screens
 │   ├── admin/           # Admin panel
+│   ├── auth/            # Authentication
+│   ├── home/            # Home screen
 │   └── splash/          # Splash screen
 ```
 
@@ -61,54 +52,51 @@ lib/
 
 ### Prerequisites
 
-- Flutter SDK (3.0 or higher)
-- Dart SDK (3.0 or higher)
+- Flutter SDK 3.0+
+- Dart SDK 3.0+
 - Firebase account
-- Android Studio / VS Code
-- Git
+- Android Studio or VS Code
 
 ### Installation
 
-1. **Clone the repository**
+1. Clone the repository
    ```bash
-   git clone <repository-url>
-   cd Sports
+   git clone https://github.com/deepit5656/CampusSports.git
+   cd CampusSports
    ```
 
-2. **Install dependencies**
+2. Install dependencies
    ```bash
    flutter pub get
    ```
 
-3. **Set up Firebase**
-   - Follow the detailed instructions in [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
-   - Add `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
+3. Configure Firebase
+   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+   - Add Android/iOS apps to your Firebase project
+   - Download `google-services.json` and place it in `android/app/`
+   - Run `flutterfire configure` to generate `firebase_options.dart`
 
-4. **Run the app**
+4. Run the app
    ```bash
    flutter run
    ```
 
-## 📦 Dependencies
+## 📱 Screenshots
 
-### Core
-- `flutter_bloc: ^8.1.3` - State management
-- `equatable: ^2.0.5` - Value equality
+_Coming soon_
 
-### Firebase
-- `firebase_core: ^2.24.2`
-- `firebase_auth: ^4.16.0`
-- `cloud_firestore: ^4.14.0`
-- `firebase_storage: ^11.6.0`
+## 🤝 Contributing
 
-### UI & Animations
-- `flutter_animate: ^4.5.0` - Animations
-- `shimmer: ^3.0.0` - Loading effects
-- `lottie: ^3.0.0` - Lottie animations
-- `cached_network_image: ^3.3.1` - Image caching
-- `flutter_svg: ^2.0.9` - SVG support
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-### Utilities
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 👤 Author
+
+**deepit5656**
+- GitHub: [@deepit5656](https://github.com/deepit5656)
 - `intl: ^0.19.0` - Date formatting
 - `google_fonts: ^6.1.0` - Custom fonts
 - `image_picker: ^1.0.7` - Image selection
@@ -242,60 +230,22 @@ See [FIRESTORE_RULES.md](FIRESTORE_RULES.md) for detailed security configuration
 
 Add sample data using admin panel or see [SAMPLE_DATA.md](SAMPLE_DATA.md) for examples.
 
-## 📸 Screenshots
+## � Screenshots
 
-[Add screenshots of your app here]
-
-- Splash Screen
-- Login/Signup
-- Home Dashboard
-- Sports Categories
-- Match Details
-- Standings
-- Admin Dashboard
-- Manage Sports/Teams/Matches
-
-## 🔮 Future Enhancements
-
-- [ ] Live score updates with real-time listeners
-- [ ] Push notifications for match updates
-- [ ] Multiple game handlers/scorers
-- [ ] Photo gallery for matches
-- [ ] Player statistics and profiles
-- [ ] Match highlights and commentary
-- [ ] Dark/Light theme toggle
-- [ ] Tournament bracket visualization
-- [ ] Export standings as PDF/Image
-- [ ] Social media integration
+_Coming soon_
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License.
 
-## 👨‍💻 Author
+## 👤 Author
 
-Created with ❤️ using Flutter
-
-## 🙏 Acknowledgments
-
-- Flutter team for the amazing framework
-- Firebase for backend services
-- Material Design for UI guidelines
-- The Flutter community for packages and support
-
-## 📞 Support
-
-For support, email [your-email@example.com] or create an issue in the repository.
+**deepit5656**
+- GitHub: [@deepit5656](https://github.com/deepit5656)
 
 ---
 

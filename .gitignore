@@ -16,10 +16,8 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# VSCode
+.vscode/
 
 # Flutter/Dart/Pub related
 **/doc/api/
@@ -30,7 +28,7 @@ migrate_working_dir/
 .packages
 .pub-cache/
 .pub/
-/build/
+build/
 
 # Symbolication related
 app.*.symbols
@@ -38,15 +36,23 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
-# Android Studio will place build artifacts here
+# Android related
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.gradle
+/android/captures/
+/android/gradlew
+/android/gradlew.bat
+/android/local.properties
+/android/**/GeneratedPluginRegistrant.java
+/android/key.properties
+/android/**/gradle-wrapper.jar
+*.jks
+*.keystore
 
-# Firebase
-google-services.json
+# Firebase (keep google-services.json for this project)
 GoogleService-Info.plist
-firebase_options.dart
 .firebase/
 
 # Environment files
@@ -84,18 +90,20 @@ firebase_options.dart
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
 
-# Android
-**/android/**/gradle-wrapper.jar
-**/android/.gradle
-**/android/captures/
-**/android/gradlew
-**/android/gradlew.bat
-**/android/local.properties
-**/android/**/GeneratedPluginRegistrant.java
-**/android/key.properties
-*.jks
+# Documentation files (excluding main README.md)
+COMMANDS.md
+FEATURES.md
+FIREBASE_SETUP.md
+FIREBASE_WEB_CONFIG.md
+FIRESTORE_RULES.md
+GET_STARTED.md
+PROJECT_SUMMARY.md
+PUBLIC_ACCESS_UPDATE.md
+QUICKSTART.md
+SAMPLE_DATA.md
+TROUBLESHOOTING.md
 
-# Exceptions to above rules.
+# Exceptions
 !**/ios/**/default.mode1v3
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
