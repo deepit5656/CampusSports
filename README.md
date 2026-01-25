@@ -61,7 +61,7 @@ lib/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/deep020206/CampusSports.git
+   git clone https://github.com/deepit5656/CampusSports.git
    cd CampusSports
    ```
 
