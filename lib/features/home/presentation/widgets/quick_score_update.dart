@@ -3,17 +3,21 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/team_model.dart';
+import '../../../../core/models/sport_model.dart';
+import '../../../../core/models/team_score_model.dart';
 
 class QuickScoreUpdate extends StatefulWidget {
   final MatchModel match;
   final TeamModel team1;
   final TeamModel team2;
+  final SportModel? sport;
 
   const QuickScoreUpdate({
     super.key,
     required this.match,
     required this.team1,
     required this.team2,
+    this.sport,
   });
 
   @override
@@ -23,9 +27,54 @@ class QuickScoreUpdate extends StatefulWidget {
 class _QuickScoreUpdateState extends State<QuickScoreUpdate> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   bool _isUpdating = false;
+  SportModel? _sport;
 
-  int get team1Score => widget.match.score?[widget.match.team1Id] ?? 0;
-  int get team2Score => widget.match.score?[widget.match.team2Id] ?? 0;
+  @override
+  void initState() {
+    super.initState();
+    _sport = widget.sport;
+    if (_sport == null && widget.match.sportId.isNotEmpty) {
+      _fetchSport();
+    }
+  }
+
+  void _fetchSport() async {
+    try {
+      final doc = await _firestore
+          .collection('sports')
+          .doc(widget.match.sportId)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _sport = SportModel.fromMap(doc.data()!);
+        });
+      }
+    } catch (e) {
+      print('Error fetching sport: $e');
+    }
+  }
+
+  String get team1ScoreDisplay {
+    if (_sport != null && widget.match.hasDetailedScore) {
+      final teamScore = widget.match.getTeamScore(widget.match.team1Id);
+      if (teamScore != null) {
+        final formatted = _sport!.getFormattedScore(teamScore);
+        return '${formatted.primary} ${formatted.secondary}'.trim();
+      }
+    }
+    return 'Score: ${widget.match.score?[widget.match.team1Id] ?? 0}';
+  }
+
+  String get team2ScoreDisplay {
+    if (_sport != null && widget.match.hasDetailedScore) {
+      final teamScore = widget.match.getTeamScore(widget.match.team2Id);
+      if (teamScore != null) {
+        final formatted = _sport!.getFormattedScore(teamScore);
+        return '${formatted.primary} ${formatted.secondary}'.trim();
+      }
+    }
+    return 'Score: ${widget.match.score?[widget.match.team2Id] ?? 0}';
+  }
 
   Future<void> _updateScore(String teamId, int delta) async {
     if (_isUpdating) return;
@@ -127,7 +176,7 @@ class _QuickScoreUpdateState extends State<QuickScoreUpdate> {
           _buildScoreControl(
             context,
             widget.team1.name,
-            team1Score,
+            team1ScoreDisplay,
             widget.match.team1Id,
             AppTheme.primaryGradientStart,
           ),
@@ -138,7 +187,7 @@ class _QuickScoreUpdateState extends State<QuickScoreUpdate> {
           _buildScoreControl(
             context,
             widget.team2.name,
-            team2Score,
+            team2ScoreDisplay,
             widget.match.team2Id,
             AppTheme.accentGradientStart,
           ),
@@ -150,7 +199,7 @@ class _QuickScoreUpdateState extends State<QuickScoreUpdate> {
   Widget _buildScoreControl(
     BuildContext context,
     String teamName,
-    int score,
+    String scoreDisplay,
     String teamId,
     Color color,
   ) {
@@ -176,7 +225,7 @@ class _QuickScoreUpdateState extends State<QuickScoreUpdate> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Score: $score',
+                  scoreDisplay,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: color,
                         fontWeight: FontWeight.bold,

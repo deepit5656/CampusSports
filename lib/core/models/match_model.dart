@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
+import 'team_score_model.dart';
 
 class MatchModel extends Equatable {
   final String id;
@@ -10,8 +11,14 @@ class MatchModel extends Equatable {
   final String venue;
   final String status; // upcoming, live, completed, cancelled
   final String? category; // Boys, Girls, Faculty
+  
+  // Legacy fields for backward compatibility
   final Map<String, dynamic>? result;
   final Map<String, int>? score;
+  
+  // New flexible scoring system
+  final Map<String, TeamScore>? detailedScore;
+  
   final String? winnerId;
   final DateTime createdAt;
 
@@ -26,11 +33,47 @@ class MatchModel extends Equatable {
     this.category,
     this.result,
     this.score,
+    this.detailedScore,
     this.winnerId,
     required this.createdAt,
   });
 
+  // Helper methods
+  bool get hasDetailedScore => detailedScore != null && detailedScore!.isNotEmpty;
+  
+  TeamScore? getTeamScore(String teamId) {
+    return detailedScore?[teamId];
+  }
+
+  // Get formatted score for display (handles both legacy and new format)
+  String getFormattedScore(String teamId, String primaryField, [String? secondaryField]) {
+    if (hasDetailedScore) {
+      final teamScore = detailedScore![teamId];
+      if (teamScore != null) {
+        return teamScore.getFormattedScore(primaryField, secondaryField);
+      }
+    }
+    
+    // Fallback to legacy score
+    if (score != null && score!.containsKey(teamId)) {
+      return score![teamId].toString();
+    }
+    
+    return '0';
+  }
+
+  // Check if match has scores (either format)
+  bool get hasScores => hasDetailedScore || (score != null && score!.isNotEmpty);
+
   Map<String, dynamic> toMap() {
+    Map<String, dynamic>? detailedScoreMap;
+    if (detailedScore != null) {
+      detailedScoreMap = {};
+      detailedScore!.forEach((teamId, teamScore) {
+        detailedScoreMap![teamId] = teamScore.toMap();
+      });
+    }
+
     return {
       'id': id,
       'sportId': sportId,
@@ -42,12 +85,22 @@ class MatchModel extends Equatable {
       'category': category,
       'result': result,
       'score': score,
+      'detailedScore': detailedScoreMap,
       'winnerId': winnerId,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
 
   factory MatchModel.fromMap(Map<String, dynamic> map) {
+    Map<String, TeamScore>? detailedScoreMap;
+    if (map['detailedScore'] != null) {
+      detailedScoreMap = {};
+      final scoreData = map['detailedScore'] as Map<String, dynamic>;
+      scoreData.forEach((teamId, teamScoreData) {
+        detailedScoreMap![teamId] = TeamScore.fromMap(teamScoreData);
+      });
+    }
+
     return MatchModel(
       id: map['id'] ?? '',
       sportId: map['sportId'] ?? '',
@@ -59,6 +112,7 @@ class MatchModel extends Equatable {
       category: map['category'],
       result: map['result'] != null ? Map<String, dynamic>.from(map['result']) : null,
       score: map['score'] != null ? Map<String, int>.from(map['score']) : null,
+      detailedScore: detailedScoreMap,
       winnerId: map['winnerId'],
       createdAt: (map['createdAt'] as Timestamp).toDate(),
     );
@@ -85,6 +139,7 @@ class MatchModel extends Equatable {
     String? category,
     Map<String, dynamic>? result,
     Map<String, int>? score,
+    Map<String, TeamScore>? detailedScore,
     String? winnerId,
     DateTime? createdAt,
   }) {
@@ -99,6 +154,7 @@ class MatchModel extends Equatable {
       category: category ?? this.category,
       result: result ?? this.result,
       score: score ?? this.score,
+      detailedScore: detailedScore ?? this.detailedScore,
       winnerId: winnerId ?? this.winnerId,
       createdAt: createdAt ?? this.createdAt,
     );
@@ -116,6 +172,7 @@ class MatchModel extends Equatable {
         category,
         result,
         score,
+        detailedScore,
         winnerId,
         createdAt,
       ];

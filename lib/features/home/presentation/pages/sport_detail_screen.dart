@@ -163,7 +163,10 @@ class _SportDetailScreenState extends State<SportDetailScreen> {
                             right: 16.0,
                             bottom: 12.0,
                           ),
-                          child: MatchCard(match: matches[index])
+                          child: MatchCard(
+                            match: matches[index],
+                            sport: widget.sport,
+                          )
                               .animate(delay: (200 + (index * 50)).ms)
                               .fadeIn()
                               .slideX(begin: -0.2, end: 0),

@@ -4,24 +4,62 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/team_model.dart';
+import '../../../../core/models/sport_model.dart';
 import '../pages/match_detail_screen.dart';
 
-class MatchCard extends StatelessWidget {
+class MatchCard extends StatefulWidget {
   final MatchModel match;
+  final SportModel? sport; // Optional sport model for dynamic scoring
 
-  const MatchCard({super.key, required this.match});
+  const MatchCard({
+    super.key, 
+    required this.match,
+    this.sport,
+  });
+
+  @override
+  State<MatchCard> createState() => _MatchCardState();
+}
+
+class _MatchCardState extends State<MatchCard> {
+  SportModel? _sport;
+  
+  @override
+  void initState() {
+    super.initState();
+    _sport = widget.sport;
+    if (_sport == null && widget.match.sportId.isNotEmpty) {
+      _fetchSport();
+    }
+  }
+  
+  void _fetchSport() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('sports')
+          .doc(widget.match.sportId)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _sport = SportModel.fromMap(doc.data()!);
+        });
+      }
+    } catch (e) {
+      print('Error fetching sport: $e');
+    }
+  }
 
   Color _getStatusColor() {
-    if (match.isUpcoming) return AppTheme.accentGradientStart;
-    if (match.isLive) return AppTheme.successColor;
-    if (match.isCompleted) return AppTheme.textSecondary;
+    if (widget.match.isUpcoming) return AppTheme.accentGradientStart;
+    if (widget.match.isLive) return AppTheme.successColor;
+    if (widget.match.isCompleted) return AppTheme.textSecondary;
     return AppTheme.errorColor;
   }
 
   String _getStatusText() {
-    if (match.isUpcoming) return 'Upcoming';
-    if (match.isLive) return 'Live';
-    if (match.isCompleted) return 'Completed';
+    if (widget.match.isUpcoming) return 'Upcoming';
+    if (widget.match.isLive) return 'Live';
+    if (widget.match.isCompleted) return 'Completed';
     return 'Cancelled';
   }
 
@@ -32,7 +70,7 @@ class MatchCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => MatchDetailScreen(match: match),
+            builder: (_) => MatchDetailScreen(match: widget.match),
           ),
         );
       },
@@ -86,7 +124,7 @@ class MatchCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    DateFormat('MMM dd, yyyy').format(match.dateTime),
+                    DateFormat('MMM dd, yyyy').format(widget.match.dateTime),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -98,8 +136,8 @@ class MatchCard extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: FutureBuilder<List<TeamModel?>>(
                 future: Future.wait([
-                  _getTeam(match.team1Id),
-                  _getTeam(match.team2Id),
+                  _getTeam(widget.match.team1Id),
+                  _getTeam(widget.match.team2Id),
                 ]),
                 builder: (context, snapshot) {
                   if (!snapshot.hasData) {
@@ -152,19 +190,10 @@ class MatchCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (match.score != null)
+                            if (widget.match.hasScores)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4.0),
-                                child: Text(
-                                  match.score![match.team1Id]?.toString() ?? '-',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineMedium
-                                      ?.copyWith(
-                                        color: AppTheme.primaryGradientStart,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
+                                child: _buildTeamScore(context, team1.id, true),
                               ),
                           ],
                         ),
@@ -198,7 +227,7 @@ class MatchCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              DateFormat('hh:mm a').format(match.dateTime),
+                              DateFormat('hh:mm a').format(widget.match.dateTime),
                               style: Theme.of(context).textTheme.bodySmall,
                             ),
                           ],
@@ -237,19 +266,10 @@ class MatchCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            if (match.score != null)
+                            if (widget.match.hasScores)
                               Padding(
                                 padding: const EdgeInsets.only(top: 4.0),
-                                child: Text(
-                                  match.score![match.team2Id]?.toString() ?? '-',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineMedium
-                                      ?.copyWith(
-                                        color: AppTheme.accentGradientStart,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
+                                child: _buildTeamScore(context, team2.id, false),
                               ),
                           ],
                         ),
@@ -280,7 +300,7 @@ class MatchCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      match.venue,
+                      widget.match.venue,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ),
@@ -306,5 +326,46 @@ class MatchCard extends StatelessWidget {
       print('Error fetching team: $e');
     }
     return null;
+  }
+
+  Widget _buildTeamScore(BuildContext context, String teamId, bool isPrimary) {
+    if (_sport != null && widget.match.hasDetailedScore) {
+      // Use dynamic scoring display
+      final teamScore = widget.match.getTeamScore(teamId);
+      if (teamScore != null) {
+        // Get formatted score from sport configuration
+        final formattedScore = _sport!.getFormattedScore(teamScore);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              formattedScore.primary,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: isPrimary ? AppTheme.primaryGradientStart : AppTheme.accentGradientStart,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (formattedScore.secondary.isNotEmpty)
+              Text(
+                formattedScore.secondary,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppTheme.textSecondary,
+                ),
+                textAlign: TextAlign.center,
+              ),
+          ],
+        );
+      }
+    }
+    
+    // Legacy scoring display or fallback
+    final scoreText = widget.match.score?[teamId]?.toString() ?? '-';
+    return Text(
+      scoreText,
+      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+        color: isPrimary ? AppTheme.primaryGradientStart : AppTheme.accentGradientStart,
+        fontWeight: FontWeight.bold,
+      ),
+    );
   }
 }

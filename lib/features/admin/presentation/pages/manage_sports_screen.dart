@@ -3,7 +3,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/sport_model.dart';
+import '../../../../core/models/scoring_config_model.dart';
 import '../../../../core/utils/validators.dart';
+import 'sport_configuration_screen.dart';
 
 class ManageSportsScreen extends StatefulWidget {
   const ManageSportsScreen({super.key});
@@ -119,7 +121,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditDialog(context),
+        onPressed: () => _navigateToSportConfiguration(context),
         icon: const Icon(Icons.add),
         label: const Text('Add Sport'),
         backgroundColor: AppTheme.primaryGradientStart,
@@ -177,7 +179,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.edit, color: AppTheme.primaryGradientStart),
-            onPressed: () => _showAddEditDialog(context, sport: sport),
+            onPressed: () => _navigateToSportConfiguration(context, sport: sport),
           ),
           IconButton(
             icon: const Icon(Icons.delete, color: AppTheme.errorColor),
@@ -186,6 +188,20 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
         ],
       ),
     );
+  }
+
+  void _navigateToSportConfiguration(BuildContext context, {SportModel? sport}) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SportConfigurationScreen(sport: sport),
+      ),
+    );
+    
+    if (result is SportModel) {
+      // Sport was created/updated, refresh the list
+      setState(() {});
+    }
   }
 
   void _showAddEditDialog(BuildContext context, {SportModel? sport}) {
@@ -250,6 +266,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
                               name: nameController.text.trim(),
                               icon: 'sports',
                               description: descriptionController.text.trim(),
+                              scoringConfig: ScoringConfig.basic(),
                               createdAt: DateTime.now(),
                             );
                             await docRef.set(newSport.toMap());

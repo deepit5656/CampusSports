@@ -7,14 +7,46 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/team_model.dart';
+import '../../../../core/models/sport_model.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../widgets/quick_score_update.dart';
 
-class MatchDetailScreen extends StatelessWidget {
+class MatchDetailScreen extends StatefulWidget {
   final MatchModel match;
 
   const MatchDetailScreen({super.key, required this.match});
+
+  @override
+  State<MatchDetailScreen> createState() => _MatchDetailScreenState();
+}
+
+class _MatchDetailScreenState extends State<MatchDetailScreen> {
+  SportModel? _sport;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.match.sportId.isNotEmpty) {
+      _fetchSport();
+    }
+  }
+
+  void _fetchSport() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('sports')
+          .doc(widget.match.sportId)
+          .get();
+      if (doc.exists && mounted) {
+        setState(() {
+          _sport = SportModel.fromMap(doc.data()!);
+        });
+      }
+    } catch (e) {
+      print('Error fetching sport: $e');
+    }
+  }
 
   Color _getStatusColor(MatchModel currentMatch) {
     if (currentMatch.isUpcoming) return AppTheme.accentGradientStart;
@@ -39,13 +71,13 @@ class MatchDetailScreen extends StatelessWidget {
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance
             .collection('matches')
-            .doc(match.id)
+            .doc(widget.match.id)
             .snapshots(),
         builder: (context, matchSnapshot) {
           // Use updated match data if available, otherwise use original
           final currentMatch = matchSnapshot.hasData && matchSnapshot.data!.exists
               ? MatchModel.fromSnapshot(matchSnapshot.data!)
-              : match;
+              : widget.match;
 
           return Container(
             decoration: const BoxDecoration(
@@ -350,6 +382,7 @@ class MatchDetailScreen extends StatelessWidget {
                               match: updatedMatch,
                               team1: snapshot.data![0]!,
                               team2: snapshot.data![1]!,
+                              sport: _sport,
                             ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0);
                           },
                         );
