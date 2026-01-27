@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/models/sport_config_comprehensive.dart';
 import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/scoring_config_model.dart';
 import '../../../../core/models/sport_templates.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class SportConfigurationScreen extends StatefulWidget {
-  final SportModel? sport; // Null for create, populated for edit
+  final SportModel? sport; // For backward compatibility 
+  final SportConfigModel? sportConfig; // New sport config
+  final bool isReadOnly;
 
   const SportConfigurationScreen({
     super.key,
     this.sport,
+    this.sportConfig,
+    this.isReadOnly = false,
   });
 
   @override
@@ -30,8 +35,14 @@ class _SportConfigurationScreenState extends State<SportConfigurationScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.sport != null) {
-      // Edit mode
+    if (widget.sportConfig != null) {
+      // New sport config mode
+      _nameController.text = widget.sportConfig!.name;
+      _iconController.text = widget.sportConfig!.icon;
+      _descriptionController.text = widget.sportConfig!.description;
+      _currentScoringConfig = ScoringConfig.basic(); // Simplified for now
+    } else if (widget.sport != null) {
+      // Edit mode (backward compatibility)
       _nameController.text = widget.sport!.name;
       _iconController.text = widget.sport!.icon;
       _descriptionController.text = widget.sport!.description;
@@ -183,12 +194,60 @@ class _SportConfigurationScreenState extends State<SportConfigurationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.isReadOnly && widget.sportConfig != null) {
+      // Read-only mode for default sports
+      return Scaffold(
+        backgroundColor: AppTheme.backgroundDark,
+        appBar: AppBar(
+          backgroundColor: AppTheme.cardDark,
+          title: Text(
+            '${widget.sportConfig!.name} Configuration',
+            style: const TextStyle(color: AppTheme.textColor),
+          ),
+          iconTheme: const IconThemeData(color: AppTheme.textColor),
+        ),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Default Sport Banner
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.star, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'This is a default sport template and cannot be modified',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Sport Info
+              _buildReadOnlySportInfo(),
+            ],
+          ),
+        ),
+      );
+    }
+    
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
         backgroundColor: AppTheme.cardDark,
         title: Text(
-          widget.sport != null ? 'Edit Sport' : 'Create Sport',
+          widget.sport != null || widget.sportConfig != null ? 'Edit Sport' : 'Create Sport',
           style: const TextStyle(color: AppTheme.textColor),
         ),
         iconTheme: const IconThemeData(color: AppTheme.textColor),
@@ -231,6 +290,103 @@ class _SportConfigurationScreenState extends State<SportConfigurationScreen> {
             _buildPreviewSection(),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildReadOnlySportInfo() {
+    final sport = widget.sportConfig!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildInfoCard('Basic Information', [
+          _buildInfoRow('Name', sport.name),
+          _buildInfoRow('Description', sport.description),
+          _buildInfoRow('Icon', sport.icon),
+        ]),
+        const SizedBox(height: 16),
+        
+        _buildInfoCard('Match Structure', [
+          _buildInfoRow('Type', sport.structureType.toString().split('.').last),
+          if (sport.duration != null && sport.duration! > 0)
+            _buildInfoRow('Duration', '${sport.duration} minutes'),
+          if (sport.overs != null && sport.overs! > 0)
+            _buildInfoRow('Overs', '${sport.overs}'),
+          if (sport.periods != null && sport.periods! > 0)
+            _buildInfoRow('Periods/Sets', '${sport.periods}'),
+          if (sport.pointsToWin != null && sport.pointsToWin! > 0)
+            _buildInfoRow('Points to Win', '${sport.pointsToWin}'),
+        ]),
+        const SizedBox(height: 16),
+        
+        _buildInfoCard('Players', [
+          _buildInfoRow('Playing Players', '${sport.playingPlayers}'),
+          _buildInfoRow('Min Players', '${sport.minPlayers ?? "N/A"}'),
+          _buildInfoRow('Max Players', '${sport.maxPlayers ?? "N/A"}'),
+          _buildInfoRow('Substitutions', sport.allowSubstitutions ? 'Allowed' : 'Not Allowed'),
+        ]),
+        const SizedBox(height: 16),
+        
+        _buildInfoCard('Scoring System', [
+          _buildInfoRow('Primary Score Unit', sport.primaryScoreUnit),
+          _buildInfoRow('Score Actions', '${sport.scoreActions.length}'),
+          _buildInfoRow('Win Condition', sport.winCondition.toString().split('.').last),
+          _buildInfoRow('Supports Tie', sport.supportsTie ? 'Yes' : 'No'),
+        ]),
+        const SizedBox(height: 16),
+        
+        _buildInfoCard('Rules', [
+          _buildInfoRow('Has Fouls', sport.hasFouls ? 'Yes' : 'No'),
+          _buildInfoRow('Has Timeouts', sport.hasTimeouts ? 'Yes' : 'No'),
+          _buildInfoRow('Has Extras', sport.hasExtras ? 'Yes' : 'No'),
+        ]),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard(String title, List<Widget> children) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.textSecondary.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryGradientStart,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
       ),
     );
   }

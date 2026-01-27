@@ -8,9 +8,11 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/team_model.dart';
 import '../../../../core/models/sport_model.dart';
+import '../../../admin/presentation/pages/cricket_match_setup_screen.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../widgets/quick_score_update.dart';
+import '../../../admin/presentation/pages/cricket_live_scoring_screen.dart';
 
 class MatchDetailScreen extends StatefulWidget {
   final MatchModel match;
@@ -377,6 +379,75 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                             final updatedMatch = MatchModel.fromSnapshot(
                               matchSnapshot.data!,
                             );
+
+                            // Check if this is a cricket match
+                            final isCricket = _sport?.name.toLowerCase() == 'cricket';
+                            
+                            if (isCricket && isAdmin) {
+                              // For cricket matches, show a button to go to cricket scorer
+                              return Container(
+                                margin: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [Color(0xFF10b981), Color(0xFF059669)],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(Icons.sports_cricket, size: 48, color: Colors.white),
+                                    SizedBox(height: 12),
+                                    Text(
+                                      'Cricket Match Scoring',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Use professional cricket scorer with ball-by-ball tracking',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    SizedBox(height: 16),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => CricketMatchSetupScreen(
+                                              matchId: updatedMatch.id,
+                                              team1Id: snapshot.data![0]!.id,
+                                              team1Name: snapshot.data![0]!.name,
+                                              team2Id: snapshot.data![1]!.id,
+                                              team2Name: snapshot.data![1]!.name,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: Icon(Icons.play_arrow),
+                                      label: Text('Open Cricket Scorer'),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white,
+                                        foregroundColor: Color(0xFF10b981),
+                                        padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.2, end: 0);
+                            }
 
                             return QuickScoreUpdate(
                               match: updatedMatch,

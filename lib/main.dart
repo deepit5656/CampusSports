@@ -7,6 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/utils/app_constants.dart';
+import 'core/services/default_sports_service.dart';
+import 'core/services/app_initialization_service.dart';
+import 'core/repositories/sport_config_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/splash/presentation/pages/splash_screen.dart';
@@ -18,6 +21,14 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  // Initialize default sports (Cricket, Football, etc.)
+  await DefaultSportsService.initializeDefaultSports();
+  
+  // Initialize enhanced sport configurations
+  final sportConfigRepo = SportConfigRepository();
+  final appInitService = AppInitializationService(sportConfigRepo);
+  await appInitService.initializeApp();
   
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([

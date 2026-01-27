@@ -32,6 +32,8 @@ dependencies:
   google_fonts: ^6.1.0
   image_picker: ^1.0.7
   share_plus: ^7.2.1
+  uuid: ^4.0.0
+  shared_preferences: ^2.5.4
   
   # Icons
   cupertino_icons: ^1.0.2

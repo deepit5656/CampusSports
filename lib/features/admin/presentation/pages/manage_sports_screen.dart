@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../../core/models/sport_model.dart';
-import '../../../../core/models/scoring_config_model.dart';
+import '../../../../core/models/sport_config_comprehensive.dart';
+import '../../../../core/models/default_sport_configurations_comprehensive.dart';
 import '../../../../core/utils/validators.dart';
 import 'sport_configuration_screen.dart';
+import 'cricket/cricket_management_screen.dart';
 
 class ManageSportsScreen extends StatefulWidget {
   const ManageSportsScreen({super.key});
@@ -16,9 +17,65 @@ class ManageSportsScreen extends StatefulWidget {
 
 class _ManageSportsScreenState extends State<ManageSportsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isInitializing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeDefaultSports();
+  }
+
+  Future<void> _initializeDefaultSports() async {
+    setState(() => _isInitializing = true);
+    
+    try {
+      final snapshot = await _firestore.collection('sport_configs').get();
+      if (snapshot.docs.isEmpty) {
+        // Initialize default sports
+        final defaultSports = DefaultSportConfigurations.getAllDefaultSports();
+        final batch = _firestore.batch();
+        
+        for (final sport in defaultSports) {
+          final docRef = _firestore.collection('sport_configs').doc(sport.id);
+          batch.set(docRef, sport.toMap());
+        }
+        
+        await batch.commit();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error initializing sports: ${e.toString()}'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      setState(() => _isInitializing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isInitializing) {
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: AppTheme.backgroundGradient,
+          ),
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Setting up sports...'),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -61,7 +118,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
               // Sports List
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: _firestore.collection('sports').snapshots(),
+                  stream: _firestore.collection('sport_configs').snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Center(child: Text('Error: ${snapshot.error}'));
@@ -72,8 +129,15 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
                     }
 
                     final sports = snapshot.data!.docs
-                        .map((doc) => SportModel.fromSnapshot(doc))
+                        .map((doc) => SportConfigModel.fromMap(doc.data() as Map<String, dynamic>))
                         .toList();
+
+                    // Sort sports: default first, then custom
+                    sports.sort((a, b) {
+                      if (a.isDefault && !b.isDefault) return -1;
+                      if (!a.isDefault && b.isDefault) return 1;
+                      return a.name.compareTo(b.name);
+                    });
 
                     if (sports.isEmpty) {
                       return Center(
@@ -87,12 +151,12 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No sports added yet',
+                              'No sports available',
                               style: Theme.of(context).textTheme.bodyLarge,
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'Tap + to add your first sport',
+                              'Please restart the app to initialize default sports',
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: AppTheme.textSecondary,
                                   ),
@@ -123,191 +187,168 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToSportConfiguration(context),
         icon: const Icon(Icons.add),
-        label: const Text('Add Sport'),
+        label: const Text('Add Custom Sport'),
         backgroundColor: AppTheme.primaryGradientStart,
       ).animate().scale(delay: 200.ms),
     );
   }
 
-  Widget _buildSportCard(SportModel sport, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              gradient: AppTheme.primaryGradient,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.sports, color: Colors.white, size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  sport.name,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  sport.description,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppTheme.textSecondary,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.edit, color: AppTheme.primaryGradientStart),
-            onPressed: () => _navigateToSportConfiguration(context, sport: sport),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: AppTheme.errorColor),
-            onPressed: () => _showDeleteDialog(context, sport),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToSportConfiguration(BuildContext context, {SportModel? sport}) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SportConfigurationScreen(sport: sport),
-      ),
-    );
+  Widget _buildSportCard(SportConfigModel sport, int index) {
+    final isCricket = sport.id == 'cricket';
+    final icon = _getSportIcon(sport.icon);
     
-    if (result is SportModel) {
-      // Sport was created/updated, refresh the list
-      setState(() {});
-    }
-  }
-
-  void _showAddEditDialog(BuildContext context, {SportModel? sport}) {
-    final nameController = TextEditingController(text: sport?.name ?? '');
-    final descriptionController = TextEditingController(text: sport?.description ?? '');
-    final formKey = GlobalKey<FormState>();
-    bool isLoading = false;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: AppTheme.cardDark,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Text(sport == null ? 'Add Sport' : 'Edit Sport'),
-          content: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Sport Name',
-                    prefixIcon: Icon(Icons.sports),
-                  ),
-                  validator: (value) => Validators.validateRequired(value, 'Sport name'),
+    return InkWell(
+      onTap: isCricket ? () => _navigateToCricketManagement(sport) : () => _navigateToSportManagement(sport),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(16),
+          border: sport.isDefault
+              ? Border.all(color: AppTheme.primaryGradientStart.withOpacity(0.3), width: 2)
+              : null,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Header with default sport indicator
+            if (sport.isDefault)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Description',
-                    prefixIcon: Icon(Icons.description),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.star, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Default Sport',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            
+            // Sport Card Content
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  maxLines: 3,
-                  validator: (value) => Validators.validateRequired(value, 'Description'),
+                  child: Text(
+                    icon,
+                    style: const TextStyle(fontSize: 24),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        sport.name,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        sport.description,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.textSecondary,
+                            ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Sport Details Row
+                        Row(
+                        children: [
+                          _buildInfoChip(
+                            sport.getStructureDisplayText(),
+                            Icons.access_time,
+                          ),
+                          const SizedBox(width: 8),
+                          _buildInfoChip(
+                            '${sport.playingPlayers} Players',
+                            Icons.group,
+                          ),
+                          if (sport.primaryScoreUnit.isNotEmpty) ...[
+                            const SizedBox(width: 8),
+                            _buildInfoChip(
+                              sport.primaryScoreUnit.toUpperCase(),
+                              Icons.emoji_events,
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Action Buttons Column
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10b981).withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFF10b981)),
+                      ),
+                      child: const Text(
+                        'Manage',
+                        style: TextStyle(
+                          color: Color(0xFF10b981),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        if (!sport.isDefault) ...[
+                          IconButton(
+                            icon: const Icon(Icons.edit, color: AppTheme.primaryGradientStart),
+                            onPressed: () => _navigateToSportConfiguration(context, sport: sport),
+                            tooltip: 'Edit Sport',
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete, color: AppTheme.errorColor),
+                            onPressed: () => _showDeleteDialog(context, sport),
+                            tooltip: 'Delete Sport',
+                          ),
+                        ] else ...[
+                          IconButton(
+                            icon: const Icon(Icons.info_outline, color: AppTheme.textSecondary),
+                            onPressed: () => _showSportInfoDialog(context, sport),
+                            tooltip: 'Sport Info',
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: isLoading ? null : () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: isLoading
-                  ? null
-                  : () async {
-                      if (formKey.currentState!.validate()) {
-                        setState(() => isLoading = true);
-
-                        try {
-                          if (sport == null) {
-                            // Add new sport
-                            final docRef = _firestore.collection('sports').doc();
-                            final newSport = SportModel(
-                              id: docRef.id,
-                              name: nameController.text.trim(),
-                              icon: 'sports',
-                              description: descriptionController.text.trim(),
-                              scoringConfig: ScoringConfig.basic(),
-                              createdAt: DateTime.now(),
-                            );
-                            await docRef.set(newSport.toMap());
-                          } else {
-                            // Update existing sport
-                            await _firestore.collection('sports').doc(sport.id).update({
-                              'name': nameController.text.trim(),
-                              'description': descriptionController.text.trim(),
-                            });
-                          }
-
-                          Navigator.pop(dialogContext);
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                sport == null
-                                    ? 'Sport added successfully!'
-                                    : 'Sport updated successfully!',
-                              ),
-                              backgroundColor: AppTheme.successColor,
-                            ),
-                          );
-                        } catch (e) {
-                          ScaffoldMessenger.of(this.context).showSnackBar(
-                            SnackBar(
-                              content: Text('Error: ${e.toString()}'),
-                              backgroundColor: AppTheme.errorColor,
-                            ),
-                          );
-                        } finally {
-                          setState(() => isLoading = false);
-                        }
-                      }
-                    },
-              child: isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(sport == null ? 'Add' : 'Update'),
             ),
           ],
         ),
@@ -315,7 +356,168 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
     );
   }
 
-  void _showDeleteDialog(BuildContext context, SportModel sport) {
+  Widget _buildInfoChip(String text, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.primaryGradientStart.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: AppTheme.primaryGradientStart.withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: AppTheme.primaryGradientStart),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppTheme.primaryGradientStart,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getSportIcon(String iconString) {
+    // Convert emoji string or return default
+    switch (iconString) {
+      case '🏏': return '🏏';
+      case '⚽': return '⚽';
+      case '🤼': return '🤼';
+      case '🏀': return '🏀';
+      case '🤾': return '🤾';
+      case '🏐': return '🏐';
+      case '🏸': return '🏸';
+      case '🏓': return '🏓';
+      case '🪢': return '🪢';
+      case '🏃': return '🏃';
+      case '🥏': return '🥏';
+      default: return '⚽';
+    }
+  }
+
+  String _getStructureDisplayText(String matchType, int duration) {
+    switch (matchType) {
+      case 'time':
+        return '${duration}min';
+      case 'overs':
+        return '$duration Overs';
+      case 'sets':
+        return 'Best of $duration';
+      case 'rounds':
+        return '$duration Rounds';
+      case 'points':
+        return 'First to $duration';
+      default:
+        return '${duration}min';
+    }
+  }
+
+  void _navigateToCricketManagement(SportConfigModel sport) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CricketManagementScreen(
+          sportId: sport.id,
+          sportName: sport.name,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToSportManagement(SportConfigModel sport) {
+    // For now, navigate to the configuration screen in read-only mode for default sports
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SportConfigurationScreen(
+          sportConfig: sport,
+          isReadOnly: sport.isDefault,
+        ),
+      ),
+    );
+  }
+
+  void _navigateToSportConfiguration(BuildContext context, {SportConfigModel? sport}) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SportConfigurationScreen(
+          sportConfig: sport,
+          isReadOnly: false,
+        ),
+      ),
+    );
+    
+    if (result is SportConfigModel) {
+      // Sport was created/updated, refresh the list
+      setState(() {});
+    }
+  }
+
+  void _showSportInfoDialog(BuildContext context, SportConfigModel sport) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Row(
+          children: [
+            Text(_getSportIcon(sport.icon), style: const TextStyle(fontSize: 24)),
+            const SizedBox(width: 8),
+            Text(sport.name),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(sport.description),
+            const SizedBox(height: 16),
+            Text('Match Structure: ${sport.getStructureDisplayText()}'),
+            Text('Players: ${sport.playingPlayers}'),
+            Text('Scoring Unit: ${sport.primaryScoreUnit}'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGradientStart.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.star, color: AppTheme.primaryGradientStart, size: 16),
+                  SizedBox(width: 4),
+                  Text(
+                    'This is a default sport template and cannot be modified',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.primaryGradientStart,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog(BuildContext context, SportConfigModel sport) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -333,7 +535,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await _firestore.collection('sports').doc(sport.id).delete();
+                await _firestore.collection('sport_configs').doc(sport.id).delete();
                 Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

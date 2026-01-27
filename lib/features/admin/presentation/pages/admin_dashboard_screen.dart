@@ -7,6 +7,7 @@ import '../../../home/presentation/pages/standings_screen.dart';
 import 'manage_sports_screen.dart';
 import 'manage_teams_screen.dart';
 import 'manage_matches_screen.dart';
+import 'cricket_match_list_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -192,6 +193,26 @@ class AdminDashboardScreen extends StatelessWidget {
                           );
                         },
                       ).animate().fadeIn(delay: 600.ms).slideX(begin: -0.2, end: 0),
+
+                      const SizedBox(height: 12),
+                      AdminDashboardCard(
+                        icon: Icons.sports_cricket,
+                        title: 'Cricket Scoring',
+                        subtitle: 'Live cricket match scoring & statistics',
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF10b981), Color(0xFF059669)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CricketMatchListScreen(),
+                            ),
+                          );
+                        },
+                      ).animate().fadeIn(delay: 700.ms).slideX(begin: -0.2, end: 0),
                     ],
                   ),
                 ),
