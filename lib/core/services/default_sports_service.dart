@@ -6,61 +6,50 @@ class DefaultSportsService {
   /// Initialize default sports in Firestore if they don't exist
   static Future<void> initializeDefaultSports() async {
     try {
-      // Check if Cricket sport exists
-      final cricketQuery = await _firestore
-          .collection('sports')
-          .where('name', isEqualTo: 'Cricket')
-          .limit(1)
-          .get();
-
-      if (cricketQuery.docs.isEmpty) {
-        // Add Cricket as default sport
-        await _firestore.collection('sports').add({
-          'name': 'Cricket',
-          'icon': '🏏',
-          'description': 'Professional cricket scoring with ball-by-ball tracking, partnerships, and detailed statistics',
-          'category': 'Outdoor',
-          'createdAt': FieldValue.serverTimestamp(),
-          'isCricket': true, // Special flag to identify cricket
-        });
-        print('✅ Cricket sport added to database');
+      // Check if any sports exist
+      final sportsQuery = await _firestore.collection('sports').limit(1).get();
+      
+      if (sportsQuery.docs.isNotEmpty) {
+        print('✅ Default sports already initialized');
+        return;
       }
 
-      // You can add more default sports here
-      final footballQuery = await _firestore
-          .collection('sports')
-          .where('name', isEqualTo: 'Football')
-          .limit(1)
-          .get();
+      print('🏃 Initializing default sports...');
 
-      if (footballQuery.docs.isEmpty) {
-        await _firestore.collection('sports').add({
-          'name': 'Football',
-          'icon': '⚽',
-          'description': 'The beautiful game',
-          'category': 'Outdoor',
+      // Default sports list with all required fields
+      final defaultSports = [
+        {'name': 'Cricket', 'icon': '🏏', 'description': 'Cricket matches', 'numberOfPlayers': 11},
+        {'name': 'Football', 'icon': '⚽', 'description': 'Football matches', 'numberOfPlayers': 11},
+        {'name': 'Basketball', 'icon': '🏀', 'description': 'Basketball matches', 'numberOfPlayers': 5},
+        {'name': 'Badminton', 'icon': '🏸', 'description': 'Badminton matches', 'numberOfPlayers': 2},
+        {'name': 'Volleyball', 'icon': '🏐', 'description': 'Volleyball matches', 'numberOfPlayers': 6},
+        {'name': 'Table Tennis', 'icon': '🏓', 'description': 'Table Tennis matches', 'numberOfPlayers': 2},
+        {'name': 'Tennis', 'icon': '🎾', 'description': 'Tennis matches', 'numberOfPlayers': 2},
+        {'name': 'Tug of War', 'icon': '🪢', 'description': 'Tug of War matches', 'numberOfPlayers': 8},
+        {'name': 'Kabaddi', 'icon': '🤼', 'description': 'Kabaddi matches', 'numberOfPlayers': 7},
+        {'name': 'Athletics', 'icon': '🏃', 'description': 'Athletics events', 'numberOfPlayers': 1},
+        {'name': 'Swimming', 'icon': '🏊', 'description': 'Swimming events', 'numberOfPlayers': 1},
+        {'name': 'Chess', 'icon': '♟️', 'description': 'Chess matches', 'numberOfPlayers': 2},
+        {'name': 'Carrom', 'icon': '🎯', 'description': 'Carrom matches', 'numberOfPlayers': 2},
+        {'name': 'Frisbee', 'icon': '🥏', 'description': 'Frisbee matches', 'numberOfPlayers': 7},
+      ];
+
+      // Add each sport to Firestore
+      final batch = _firestore.batch();
+      for (final sport in defaultSports) {
+        final docRef = _firestore.collection('sports').doc();
+        batch.set(docRef, {
+          'id': docRef.id,
+          'name': sport['name'],
+          'icon': sport['icon'],
+          'description': sport['description'],
+          'numberOfPlayers': sport['numberOfPlayers'],
           'createdAt': FieldValue.serverTimestamp(),
         });
-        print('✅ Football sport added to database');
       }
 
-      final basketballQuery = await _firestore
-          .collection('sports')
-          .where('name', isEqualTo: 'Basketball')
-          .limit(1)
-          .get();
-
-      if (basketballQuery.docs.isEmpty) {
-        await _firestore.collection('sports').add({
-          'name': 'Basketball',
-          'icon': '🏀',
-          'description': 'Fast-paced indoor sport',
-          'category': 'Indoor',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
-        print('✅ Basketball sport added to database');
-      }
-
+      await batch.commit();
+      print('✅ Default sports initialized successfully');
     } catch (e) {
       print('❌ Error initializing default sports: $e');
     }

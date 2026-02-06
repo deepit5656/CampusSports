@@ -7,6 +7,16 @@ import '../../../../core/models/match_model.dart';
 import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/team_model.dart';
 import '../../../../core/utils/validators.dart';
+import 'cricket/cricket_match_control_screen.dart';
+import 'football/football_match_control_screen.dart';
+import 'basketball/basketball_match_control_screen.dart';
+import 'badminton/badminton_match_control_screen.dart';
+import 'table_tennis/table_tennis_match_control_screen.dart';
+import 'volleyball/volleyball_match_control_screen.dart';
+import 'tennis/tennis_match_control_screen.dart';
+import 'kabaddi/kabaddi_match_control_screen.dart';
+import 'tugofwar/tugofwar_match_control_screen.dart';
+import 'frisbee/frisbee_match_control_screen.dart';
 
 class ManageMatchesScreen extends StatefulWidget {
   const ManageMatchesScreen({super.key});
@@ -15,16 +25,25 @@ class ManageMatchesScreen extends StatefulWidget {
   State<ManageMatchesScreen> createState() => _ManageMatchesScreenState();
 }
 
-class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
+class _ManageMatchesScreenState extends State<ManageMatchesScreen>
+    with SingleTickerProviderStateMixin {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  String? _selectedSportId;
+  String _selectedStatus = 'all'; // all, upcoming, live, completed
+  TabController? _tabController;
+  List<SportModel> _sports = [];
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: AppTheme.getBackgroundDecoration(context),
         child: SafeArea(
           child: Column(
             children: [
@@ -37,24 +56,102 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
                     bottomRight: Radius.circular(30),
                   ),
                 ),
-                padding: const EdgeInsets.all(24),
-                child: Row(
+                child: Column(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Manage Matches',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
+                    // Title and back button
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Manage Matches',
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                              textAlign: TextAlign.center,
                             ),
-                        textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(width: 48),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 48),
+
+                    // Sport Tabs
+                    StreamBuilder<QuerySnapshot>(
+                      stream: _firestore.collection('sports').snapshots(),
+                      builder: (context, snapshot) {
+                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                          return const SizedBox.shrink();
+                        }
+
+                        _sports = snapshot.data!.docs
+                            .map((doc) => SportModel.fromSnapshot(doc))
+                            .toList();
+                        
+                        // Sort sports alphabetically to ensure consistent display
+                        _sports.sort((a, b) => a.name.compareTo(b.name));
+
+                        if (_tabController == null || _tabController!.length != _sports.length + 1) {
+                          _tabController?.dispose();
+                          _tabController = TabController(
+                            length: _sports.length + 1,
+                            vsync: this,
+                          );
+                          _tabController!.addListener(() {
+                            if (!_tabController!.indexIsChanging) {
+                              setState(() {
+                                _selectedSportId = _tabController!.index == 0
+                                    ? null
+                                    : _sports[_tabController!.index - 1].id;
+                              });
+                            }
+                          });
+                        }
+
+                        return Container(
+                          height: 48,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: TabBar(
+                            controller: _tabController,
+                            isScrollable: true,
+                            labelColor: Colors.white,
+                            unselectedLabelColor: Colors.white70,
+                            indicatorColor: Colors.white,
+                            indicatorWeight: 3,
+                            tabAlignment: TabAlignment.start,
+                            tabs: [
+                              const Tab(text: 'All Sports'),
+                              ..._sports.map((sport) => Tab(text: sport.name)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                    // Status Filters
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildStatusChip('All', 'all'),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('Upcoming', 'upcoming'),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('Live', 'live'),
+                            const SizedBox(width: 8),
+                            _buildStatusChip('Finished', 'completed'),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -75,9 +172,19 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    final matches = snapshot.data!.docs
+                    var matches = snapshot.data!.docs
                         .map((doc) => MatchModel.fromSnapshot(doc))
                         .toList();
+
+                    // Filter by sport
+                    if (_selectedSportId != null) {
+                      matches = matches.where((m) => m.sportId == _selectedSportId).toList();
+                    }
+
+                    // Filter by status
+                    if (_selectedStatus != 'all') {
+                      matches = matches.where((m) => m.status == _selectedStatus).toList();
+                    }
 
                     if (matches.isEmpty) {
                       return Center(
@@ -91,7 +198,9 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'No matches scheduled yet',
+                              _selectedStatus == 'all' 
+                                  ? 'No matches scheduled yet' 
+                                  : 'No ${_selectedStatus} matches',
                               style: Theme.of(context).textTheme.bodyLarge,
                             ),
                             const SizedBox(height: 8),
@@ -133,138 +242,406 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
     );
   }
 
-  Widget _buildMatchCard(MatchModel match, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
+  Widget _buildStatusChip(String label, String value) {
+    final isSelected = _selectedStatus == value;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        setState(() {
+          _selectedStatus = value;
+        });
+      },
+      backgroundColor: Colors.white.withOpacity(0.1),
+      selectedColor: Colors.white.withOpacity(0.3),
+      labelStyle: TextStyle(
+        color: Colors.white,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Status and Date Row
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _getStatusColor(match.status).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  match.status.toUpperCase(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: _getStatusColor(match.status),
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ),
-              const Spacer(),
-              Text(
-                DateFormat('MMM dd, yyyy').format(match.dateTime),
-                style: Theme.of(context).textTheme.bodySmall,
+      checkmarkColor: Colors.white,
+    );
+  }
+
+  Widget _buildMatchCard(MatchModel match, int index) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: _firestore.collection('sports').doc(match.sportId).get(),
+      builder: (context, sportSnapshot) {
+        final sport = sportSnapshot.hasData ? SportModel.fromSnapshot(sportSnapshot.data!) : null;
+        
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.getCardColor(context),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-
-          const SizedBox(height: 12),
-
-          // Teams
-          FutureBuilder<List<TeamModel?>>(
-            future: Future.wait([
-              _getTeam(match.team1Id),
-              _getTeam(match.team2Id),
-            ]),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final team1 = snapshot.data![0];
-              final team2 = snapshot.data![1];
-
-              return Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Status, Sport and Date Row
+              Row(
                 children: [
-                  Expanded(
-                    child: Text(
-                      team1?.name ?? 'Unknown',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      gradient: AppTheme.successGradient,
-                      borderRadius: BorderRadius.circular(8),
+                      color: _getStatusColor(match.status).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'VS',
+                      match.status.toUpperCase(),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.white,
+                            color: _getStatusColor(match.status),
                             fontWeight: FontWeight.bold,
                           ),
                     ),
                   ),
-                  Expanded(
-                    child: Text(
-                      team2?.name ?? 'Unknown',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                      textAlign: TextAlign.right,
+                  if (sport != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryGradientStart.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        sport.name,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.primaryGradientStart,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
                     ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    DateFormat('MMM dd, yyyy').format(match.dateTime),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 8),
-
-          // Venue
-          Row(
-            children: [
-              const Icon(Icons.location_on, size: 16, color: AppTheme.textSecondary),
-              const SizedBox(width: 4),
-              Text(
-                match.venue,
-                style: Theme.of(context).textTheme.bodySmall,
               ),
-            ],
-          ),
 
-          const SizedBox(height: 12),
+              const SizedBox(height: 12),
 
-          // Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (match.isUpcoming || match.isLive)
-                TextButton.icon(
-                  onPressed: () => _showUpdateResultDialog(context, match),
-                  icon: const Icon(Icons.edit_note, size: 18),
-                  label: const Text('Update Result'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.successColor,
+              // Teams with Scores and Roster Status
+              FutureBuilder<List<dynamic>>(
+                future: Future.wait([
+                  _getTeam(match.team1Id),
+                  _getTeam(match.team2Id),
+                  _isTeamRosterComplete(match.team1Id, match.sportId),
+                  _isTeamRosterComplete(match.team2Id, match.sportId),
+                ]),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final team1 = snapshot.data![0] as TeamModel?;
+                  final team2 = snapshot.data![1] as TeamModel?;
+                  final team1Complete = snapshot.data![2] as bool;
+                  final team2Complete = snapshot.data![3] as bool;
+                  final score1 = match.score?[match.team1Id];
+                  final score2 = match.score?[match.team2Id];
+                  final hasScores = score1 != null || score2 != null;
+
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    team1?.name ?? 'Unknown',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      fontWeight: match.winnerId == match.team1Id 
+                                        ? FontWeight.bold 
+                                        : FontWeight.normal,
+                                      color: match.winnerId == match.team1Id
+                                        ? AppTheme.successColor
+                                        : Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  team1Complete ? Icons.check_circle : Icons.warning,
+                                  size: 16,
+                                  color: team1Complete 
+                                    ? AppTheme.successColor 
+                                    : AppTheme.accentGradientStart,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (hasScores) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: match.winnerId == match.team1Id
+                                  ? AppTheme.successColor.withOpacity(0.2)
+                                  : AppTheme.backgroundDark,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: match.winnerId == match.team1Id
+                                    ? AppTheme.successColor
+                                    : Colors.white.withOpacity(0.2),
+                                ),
+                              ),
+                              child: Text(
+                                score1?.toString() ?? '0',
+                                style: TextStyle(
+                                  color: match.winnerId == match.team1Id
+                                    ? AppTheme.successColor
+                                    : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    team2?.name ?? 'Unknown',
+                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      fontWeight: match.winnerId == match.team2Id 
+                                        ? FontWeight.bold 
+                                        : FontWeight.normal,
+                                      color: match.winnerId == match.team2Id
+                                        ? AppTheme.successColor
+                                        : Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(
+                                  team2Complete ? Icons.check_circle : Icons.warning,
+                                  size: 16,
+                                  color: team2Complete 
+                                    ? AppTheme.successColor 
+                                    : AppTheme.accentGradientStart,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (hasScores) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: match.winnerId == match.team2Id
+                                  ? AppTheme.successColor.withOpacity(0.2)
+                                  : AppTheme.backgroundDark,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: match.winnerId == match.team2Id
+                                    ? AppTheme.successColor
+                                    : Colors.white.withOpacity(0.2),
+                                ),
+                              ),
+                              child: Text(
+                                score2?.toString() ?? '0',
+                                style: TextStyle(
+                                  color: match.winnerId == match.team2Id
+                                    ? AppTheme.successColor
+                                    : Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      if (!hasScores) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                gradient: AppTheme.successGradient,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'VS',
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+
+              const SizedBox(height: 8),
+
+              // Venue
+              Row(
+                children: [
+                  const Icon(Icons.location_on, size: 16, color: AppTheme.textSecondary),
+                  const SizedBox(width: 4),
+                  Text(
+                    match.venue,
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
-                ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.delete, color: AppTheme.errorColor),
-                onPressed: () => _showDeleteDialog(context, match),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
+              // Actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (match.isUpcoming || match.isLive)
+                    TextButton.icon(
+                      onPressed: () {
+                        if (sport != null) {
+                          _navigateToMatchControl(context, match, sport);
+                        }
+                      },
+                      icon: const Icon(Icons.edit_note, size: 18),
+                      label: Text(sport?.name.toLowerCase() == 'cricket' ? 'Manage Match' : 'Update Result'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.successColor,
+                      ),
+                    ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.delete, color: AppTheme.errorColor),
+                    onPressed: () => _showDeleteDialog(context, match),
+                  ),
+                ],
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  void _navigateToMatchControl(BuildContext context, MatchModel match, SportModel sport) {
+    final sportName = sport.name.toLowerCase();
+    
+    if (sportName == 'cricket') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CricketMatchControlScreen(
+            matchId: match.id,
+          ),
+        ),
+      );
+    } else if (sportName == 'football') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FootballMatchControlScreen(
+            matchId: match.id,
+          ),
+        ),
+      );
+    } else if (sportName == 'basketball') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BasketballMatchControlScreen(
+            matchId: match.id,
+          ),
+        ),
+      );
+    } else if (sportName == 'badminton') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BadmintonMatchControlScreen(
+            match: match,
+          ),
+        ),
+      );
+    } else if (sportName == 'table tennis' || sportName == 'tabletennis') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TableTennisMatchControlScreen(
+            match: match,
+          ),
+        ),
+      );
+    } else if (sportName == 'volleyball') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => VolleyballMatchControlScreen(
+            match: match,
+          ),
+        ),
+      );
+    } else if (sportName == 'tennis') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TennisMatchControlScreen(
+            match: match,
+          ),
+        ),
+      );
+    } else if (sportName == 'kabaddi') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => KabaddiMatchControlScreen(
+            match: match,
+          ),
+        ),
+      );
+    } else if (sportName == 'tug of war' || sportName == 'tugofwar') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => TugOfWarMatchControlScreen(
+            match: match,
+          ),
+        ),
+      );
+    } else if (sportName == 'frisbee') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FrisbeeMatchControlScreen(
+            match: match,
+          ),
+        ),
+      );
+    } else {
+      // Default: show simple update dialog for other sports (Athletics, Swimming, Chess, Carrom)
+      _showUpdateResultDialog(context, match);
+    }
   }
 
   Color _getStatusColor(String status) {
@@ -282,12 +659,13 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
 
   Future<void> _showAddMatchDialog(BuildContext context) async {
     final sports = await _firestore.collection('sports').get();
-    final teams = await _firestore.collection('teams').get();
+    final allTeams = await _firestore.collection('teams').get();
+    final players = await _firestore.collection('players').get();
 
-    if (sports.docs.isEmpty || teams.docs.isEmpty) {
+    if (sports.docs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please add sports and teams first!'),
+          content: Text('Please add sports first!'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
@@ -295,14 +673,58 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
     }
 
     String? selectedSportId = sports.docs.first.id;
-    String? selectedTeam1Id = teams.docs.first.id;
-    String? selectedTeam2Id = teams.docs.length > 1 ? teams.docs[1].id : teams.docs.first.id;
+    String? selectedTeam1Id;
+    String? selectedTeam2Id;
     String selectedCategory = 'Boys';
     DateTime selectedDate = DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.now();
     final venueController = TextEditingController();
     final formKey = GlobalKey<FormState>();
     bool isLoading = false;
+
+    // Helper function to get eligible teams for selected sport
+    List<TeamModel> getEligibleTeams(String? sportId) {
+      if (sportId == null) return [];
+      
+      // Get sport's required number of players
+      try {
+        final sportDoc = sports.docs.firstWhere(
+          (doc) => doc.id == sportId,
+          orElse: () => throw Exception('Sport not found'),
+        );
+        
+        final sportData = sportDoc.data() as Map<String, dynamic>?;
+        if (sportData == null) {
+          return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
+        }
+        
+        final requiredPlayers = sportData['numberOfPlayers'] as int?;
+        
+        if (requiredPlayers == null || requiredPlayers == 0) {
+          return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
+        }
+        
+        // Filter teams that have complete rosters for this sport
+        return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).where((team) {
+          final teamPlayerCount = players.docs.where((playerDoc) {
+            final playerData = playerDoc.data() as Map<String, dynamic>?;
+            if (playerData == null) return false;
+            return playerData['teamId'] == team.id && playerData['sportId'] == sportId;
+          }).length;
+          return teamPlayerCount >= requiredPlayers;
+        }).toList();
+      } catch (e) {
+        print('Error getting eligible teams: $e');
+        return [];
+      }
+    }
+
+    // Initialize with eligible teams
+    var eligibleTeams = getEligibleTeams(selectedSportId);
+    if (eligibleTeams.isNotEmpty) {
+      selectedTeam1Id = eligibleTeams.first.id;
+      selectedTeam2Id = eligibleTeams.length > 1 ? eligibleTeams[1].id : eligibleTeams.first.id;
+    }
 
     showDialog(
       context: context,
@@ -334,47 +756,83 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
                       );
                     }).toList(),
                     onChanged: (value) {
-                      setState(() => selectedSportId = value);
+                      setState(() {
+                        selectedSportId = value;
+                        // Refresh eligible teams when sport changes
+                        eligibleTeams = getEligibleTeams(value);
+                        if (eligibleTeams.isNotEmpty) {
+                          selectedTeam1Id = eligibleTeams.first.id;
+                          selectedTeam2Id = eligibleTeams.length > 1 ? eligibleTeams[1].id : eligibleTeams.first.id;
+                        } else {
+                          selectedTeam1Id = null;
+                          selectedTeam2Id = null;
+                        }
+                      });
                     },
                   ),
                   const SizedBox(height: 16),
 
                   // Team 1 Dropdown
-                  DropdownButtonFormField<String>(
-                    value: selectedTeam1Id,
+                  DropdownButtonFormField<String?>(
+                    value: eligibleTeams.any((t) => t.id == selectedTeam1Id) ? selectedTeam1Id : null,
                     decoration: const InputDecoration(
                       labelText: 'Team 1',
                       prefixIcon: Icon(Icons.groups),
                     ),
-                    items: teams.docs.map((doc) {
-                      final team = TeamModel.fromSnapshot(doc);
-                      return DropdownMenuItem(
-                        value: team.id,
-                        child: Text(team.name),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
+                    items: eligibleTeams.isEmpty 
+                      ? [DropdownMenuItem<String?>(value: null, child: Text('No eligible teams'))]
+                      : eligibleTeams.map((team) {
+                          return DropdownMenuItem<String?>(
+                            value: team.id,
+                            child: Text(team.name),
+                          );
+                        }).toList(),
+                    onChanged: eligibleTeams.isEmpty ? null : (value) {
                       setState(() => selectedTeam1Id = value);
                     },
+                    validator: (value) {
+                      if (eligibleTeams.isEmpty) {
+                        return 'No teams available with complete rosters';
+                      }
+                      return null;
+                    },
                   ),
+                  if (eligibleTeams.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        'Please add teams with complete player rosters for this sport',
+                        style: TextStyle(
+                          color: AppTheme.errorColor,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
                   const SizedBox(height: 16),
 
                   // Team 2 Dropdown
-                  DropdownButtonFormField<String>(
-                    value: selectedTeam2Id,
+                  DropdownButtonFormField<String?>(
+                    value: eligibleTeams.any((t) => t.id == selectedTeam2Id) ? selectedTeam2Id : null,
                     decoration: const InputDecoration(
                       labelText: 'Team 2',
                       prefixIcon: Icon(Icons.groups),
                     ),
-                    items: teams.docs.map((doc) {
-                      final team = TeamModel.fromSnapshot(doc);
-                      return DropdownMenuItem(
-                        value: team.id,
-                        child: Text(team.name),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
+                    items: eligibleTeams.isEmpty 
+                      ? [DropdownMenuItem<String?>(value: null, child: Text('No eligible teams'))]
+                      : eligibleTeams.map((team) {
+                          return DropdownMenuItem<String?>(
+                            value: team.id,
+                            child: Text(team.name),
+                          );
+                        }).toList(),
+                    onChanged: eligibleTeams.isEmpty ? null : (value) {
                       setState(() => selectedTeam2Id = value);
+                    },
+                    validator: (value) {
+                      if (eligibleTeams.isEmpty) {
+                        return 'No teams available with complete rosters';
+                      }
+                      return null;
                     },
                   ),
                   const SizedBox(height: 16),
@@ -458,6 +916,26 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
                   ? null
                   : () async {
                       if (formKey.currentState!.validate()) {
+                        if (eligibleTeams.isEmpty) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please add teams with complete player rosters first!'),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                          return;
+                        }
+                        
+                        if (selectedTeam1Id == null || selectedTeam2Id == null) {
+                          ScaffoldMessenger.of(this.context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please select both teams!'),
+                              backgroundColor: AppTheme.errorColor,
+                            ),
+                          );
+                          return;
+                        }
+                        
                         if (selectedTeam1Id == selectedTeam2Id) {
                           ScaffoldMessenger.of(this.context).showSnackBar(
                             const SnackBar(
@@ -717,5 +1195,28 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen> {
       print('Error fetching team: $e');
     }
     return null;
+  }
+
+  Future<bool> _isTeamRosterComplete(String teamId, String sportId) async {
+    try {
+      // Get sport to find required players
+      final sportDoc = await _firestore.collection('sports').doc(sportId).get();
+      if (!sportDoc.exists) return false;
+      
+      final sportData = sportDoc.data() as Map<String, dynamic>;
+      final requiredPlayers = sportData['numberOfPlayers'] as int? ?? 0;
+      
+      // Count players for this team in this sport
+      final playersSnapshot = await _firestore
+          .collection('players')
+          .where('teamId', isEqualTo: teamId)
+          .where('sportId', isEqualTo: sportId)
+          .get();
+      
+      return playersSnapshot.docs.length >= requiredPlayers;
+    } catch (e) {
+      print('Error checking roster: $e');
+      return false;
+    }
   }
 }

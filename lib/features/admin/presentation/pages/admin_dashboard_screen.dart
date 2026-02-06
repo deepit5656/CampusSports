@@ -9,18 +9,98 @@ import 'manage_teams_screen.dart';
 import 'manage_matches_screen.dart';
 import 'cricket_match_list_screen.dart';
 
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
 
   @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _isInitializing = false;
+
+  Future<void> _initializeDefaultSports() async {
+    setState(() => _isInitializing = true);
+
+    try {
+      final sportsSnapshot = await _firestore.collection('sports').get();
+      
+      if (sportsSnapshot.docs.isNotEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sports already exist in database!'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        setState(() => _isInitializing = false);
+        return;
+      }
+
+      // Default sports list
+      final defaultSports = [
+        {'name': 'Cricket', 'icon': '🏏', 'description': 'Cricket matches', 'numberOfPlayers': 11},
+        {'name': 'Football', 'icon': '⚽', 'description': 'Football matches', 'numberOfPlayers': 11},
+        {'name': 'Basketball', 'icon': '🏀', 'description': 'Basketball matches', 'numberOfPlayers': 5},
+        {'name': 'Badminton', 'icon': '🏸', 'description': 'Badminton matches', 'numberOfPlayers': 2},
+        {'name': 'Volleyball', 'icon': '🏐', 'description': 'Volleyball matches', 'numberOfPlayers': 6},
+        {'name': 'Table Tennis', 'icon': '🏓', 'description': 'Table Tennis matches', 'numberOfPlayers': 2},
+        {'name': 'Tennis', 'icon': '🎾', 'description': 'Tennis matches', 'numberOfPlayers': 2},
+        {'name': 'Tug of War', 'icon': '🪢', 'description': 'Tug of War matches', 'numberOfPlayers': 8},
+        {'name': 'Kabaddi', 'icon': '🤼', 'description': 'Kabaddi matches', 'numberOfPlayers': 7},
+        {'name': 'Athletics', 'icon': '🏃', 'description': 'Athletics events', 'numberOfPlayers': 1},
+        {'name': 'Swimming', 'icon': '🏊', 'description': 'Swimming events', 'numberOfPlayers': 1},
+        {'name': 'Chess', 'icon': '♟️', 'description': 'Chess matches', 'numberOfPlayers': 2},
+        {'name': 'Carrom', 'icon': '🎯', 'description': 'Carrom matches', 'numberOfPlayers': 2},
+        {'name': 'Frisbee', 'icon': '🥏', 'description': 'Frisbee matches', 'numberOfPlayers': 7},
+      ];
+
+      // Add each sport to Firestore
+      final batch = _firestore.batch();
+      for (final sport in defaultSports) {
+        final docRef = _firestore.collection('sports').doc();
+        batch.set(docRef, {
+          'id': docRef.id,
+          'name': sport['name'],
+          'icon': sport['icon'],
+          'description': sport['description'],
+          'numberOfPlayers': sport['numberOfPlayers'],
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Added ${defaultSports.length} default sports!'),
+          backgroundColor: AppTheme.successColor,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: AppTheme.errorColor,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isInitializing = false);
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: AppTheme.getBackgroundDecoration(context),
         child: SafeArea(
           child: CustomScrollView(
             slivers: [
@@ -63,9 +143,9 @@ class AdminDashboardScreen extends StatelessWidget {
                       // Quick Stats
                       FutureBuilder<List<QuerySnapshot>>(
                         future: Future.wait([
-                          firestore.collection('sports').get(),
-                          firestore.collection('teams').get(),
-                          firestore.collection('matches').get(),
+                          _firestore.collection('sports').get(),
+                          _firestore.collection('teams').get(),
+                          _firestore.collection('matches').get(),
                         ]),
                         builder: (context, snapshot) {
                           int sportsCount = 0;
@@ -78,37 +158,89 @@ class AdminDashboardScreen extends StatelessWidget {
                             matchesCount = snapshot.data![2].docs.length;
                           }
 
-                          return Row(
+                          return Column(
                             children: [
-                              Expanded(
-                                child: _buildStatCard(
-                                  context,
-                                  Icons.sports,
-                                  'Sports',
-                                  sportsCount.toString(),
-                                  AppTheme.primaryGradient,
-                                ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      context,
+                                      Icons.sports,
+                                      'Sports',
+                                      sportsCount.toString(),
+                                      AppTheme.primaryGradient,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      context,
+                                      Icons.groups,
+                                      'Teams',
+                                      teamsCount.toString(),
+                                      AppTheme.accentGradient,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      context,
+                                      Icons.event,
+                                      'Matches',
+                                      matchesCount.toString(),
+                                      AppTheme.successGradient,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildStatCard(
-                                  context,
-                                  Icons.groups,
-                                  'Teams',
-                                  teamsCount.toString(),
-                                  AppTheme.accentGradient,
+                              
+                              // Initialize Default Sports Button (show only if no sports)
+                              if (sportsCount == 0) ...[
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      colors: [Color(0xFF10b981), Color(0xFF059669)],
+                                    ),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      const Icon(Icons.sports, color: Colors.white, size: 32),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'No Sports Found',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      ElevatedButton.icon(
+                                        onPressed: _isInitializing ? null : _initializeDefaultSports,
+                                        icon: _isInitializing
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Colors.white,
+                                                ),
+                                              )
+                                            : const Icon(Icons.add_circle),
+                                        label: Text(_isInitializing ? 'Adding...' : 'Add Default Sports'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.white,
+                                          foregroundColor: const Color(0xFF10b981),
+                                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildStatCard(
-                                  context,
-                                  Icons.event,
-                                  'Matches',
-                                  matchesCount.toString(),
-                                  AppTheme.successGradient,
-                                ),
-                              ),
+                              ],
                             ],
                           ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.2, end: 0);
                         },

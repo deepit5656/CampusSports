@@ -12,7 +12,6 @@ import '../../../admin/presentation/pages/cricket_match_setup_screen.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../widgets/quick_score_update.dart';
-import '../../../admin/presentation/pages/cricket_live_scoring_screen.dart';
 
 class MatchDetailScreen extends StatefulWidget {
   final MatchModel match;
@@ -520,7 +519,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
+        color: AppTheme.getCardColor(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(

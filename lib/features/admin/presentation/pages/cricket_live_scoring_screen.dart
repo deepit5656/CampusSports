@@ -7,9 +7,7 @@ import '../../../../core/models/cricket/cricket_bowling_stats.dart';
 import '../../../../core/models/cricket/cricket_inning.dart';
 import '../../../../core/models/cricket/cricket_match_config.dart';
 import '../../../../core/models/cricket/cricket_player.dart';
-import '../../../../core/models/cricket/cricket_partnership.dart';
 import '../../../../core/services/cricket_scoring_service.dart';
-
 
 class CricketLiveScoringScreen extends StatefulWidget {
   final String matchId;
@@ -36,8 +34,6 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
   List<CricketBattingStats> _battingStats = [];
   List<CricketBowlingStats> _bowlingStats = [];
   List<CricketBall> _currentOverBalls = [];
-  List<CricketBall> _allBalls = [];
-  CricketPartnership? _currentPartnership;
 
   CricketPlayer? _striker;
   CricketPlayer? _nonStriker;
@@ -62,12 +58,15 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
     setState(() => _isLoading = true);
     try {
       final inning = await _cricketService.getInning(widget.inningId);
-      final battingStats = await _cricketService.getInningBattingStats(widget.inningId);
-      final bowlingStats = await _cricketService.getInningBowlingStats(widget.inningId);
+      final battingStats =
+          await _cricketService.getInningBattingStats(widget.inningId);
+      final bowlingStats =
+          await _cricketService.getInningBowlingStats(widget.inningId);
       final allBalls = await _cricketService.getInningBalls(widget.inningId);
 
       final currentOver = inning?.overs.floor() ?? 0;
-      final overBalls = allBalls.where((b) => b.overNumber == currentOver).toList();
+      final overBalls =
+          allBalls.where((b) => b.overNumber == currentOver).toList();
 
       // Load current players
       CricketPlayer? striker;
@@ -84,20 +83,14 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
         bowler = await _getPlayer(inning!.currentBowlerId!);
       }
 
-      // Load current partnership
-      final partnerships = await _cricketService.getPartnerships(widget.inningId);
-      final activePartnership = partnerships.where((p) => p.isActive).firstOrNull;
-
       setState(() {
         _inning = inning;
         _battingStats = battingStats;
         _bowlingStats = bowlingStats;
         _currentOverBalls = overBalls;
-        _allBalls = allBalls;
         _striker = striker;
         _nonStriker = nonStriker;
         _currentBowler = bowler;
-        _currentPartnership = activePartnership;
         _isLoading = false;
       });
     } catch (e) {
@@ -178,11 +171,11 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
 
     try {
       await _cricketService.recordBall(ball, widget.config);
-      
+
       // Check if we need to swap batsmen
       final totalRuns = actualRuns + extras;
       final shouldSwap = (totalRuns % 2 == 1); // Odd runs, swap batsmen
-      
+
       // Check if over is complete
       final newOvers = _inning!.overs + (ball.isValidBall ? 0.1 : 0.0);
       final isOverComplete = _cricketService.isOverComplete(newOvers);
@@ -367,7 +360,8 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
                           stat.playerName,
                           style: TextStyle(
                             color: AppTheme.textColor,
-                            fontWeight: isStriker ? FontWeight.w600 : FontWeight.normal,
+                            fontWeight:
+                                isStriker ? FontWeight.w600 : FontWeight.normal,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -421,7 +415,9 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
               ],
             ),
           ),
-          ..._bowlingStats.where((s) => s.playerId == _currentBowler!.id).map((stat) {
+          ..._bowlingStats
+              .where((s) => s.playerId == _currentBowler!.id)
+              .map((stat) {
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
@@ -673,7 +669,9 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
           color: selected ? Colors.green.shade700 : AppTheme.surfaceDark,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? Colors.green.shade700 : AppTheme.textSecondary.withOpacity(0.3),
+            color: selected
+                ? Colors.green.shade700
+                : AppTheme.textSecondary.withOpacity(0.3),
           ),
         ),
         child: Text(
@@ -730,7 +728,8 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
                     ),
                     child: const Text(
                       '...',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -744,7 +743,7 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
 
   Widget _buildRunButton(int runs) {
     Color bgColor = Colors.green.shade700;
-    
+
     return ElevatedButton(
       onPressed: () => _recordRuns(runs),
       style: ElevatedButton.styleFrom(
@@ -807,4 +806,3 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
     );
   }
 }
-

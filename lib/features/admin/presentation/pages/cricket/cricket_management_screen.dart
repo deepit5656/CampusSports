@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/theme/app_theme.dart';
-import '../../../../../core/models/team_model.dart';
 import 'cricket_teams_tab.dart';
 import 'cricket_matches_tab.dart';
 import 'cricket_history_tab.dart';

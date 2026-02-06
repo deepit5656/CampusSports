@@ -6,7 +6,14 @@ import '../../../../core/models/team_model.dart';
 import '../../../../core/utils/validators.dart';
 
 class ManageTeamsScreen extends StatefulWidget {
-  const ManageTeamsScreen({super.key});
+  final String? sportId; // Optional sportId filter
+  final String? sportName; // Optional sport name for display
+  
+  const ManageTeamsScreen({
+    super.key,
+    this.sportId,
+    this.sportName,
+  });
 
   @override
   State<ManageTeamsScreen> createState() => _ManageTeamsScreenState();
@@ -19,9 +26,7 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: AppTheme.getBackgroundDecoration(context),
         child: SafeArea(
           child: Column(
             children: [
@@ -43,7 +48,9 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        'Manage Teams',
+                        widget.sportName != null 
+                            ? '${widget.sportName} Teams' 
+                            : 'Manage Teams',
                         style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -59,7 +66,12 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
               // Teams List
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: _firestore.collection('teams').snapshots(),
+                  stream: widget.sportId != null
+                      ? _firestore
+                          .collection('teams')
+                          .where('sportId', isEqualTo: widget.sportId)
+                          .snapshots()
+                      : _firestore.collection('teams').snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Center(child: Text('Error: ${snapshot.error}'));
@@ -132,7 +144,7 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
+        color: AppTheme.getCardColor(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -179,15 +191,6 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                         color: AppTheme.textSecondary,
                       ),
                 ),
-                if (team.players.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '${team.players.length} players',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppTheme.accentGradientStart,
-                        ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -204,12 +207,10 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
     );
   }
 
-  void _showAddEditDialog(BuildContext context, {TeamModel? team}) {
+  void _showAddEditDialog(BuildContext context, {TeamModel? team}) async {
     final nameController = TextEditingController(text: team?.name ?? '');
     final departmentController = TextEditingController(text: team?.department ?? '');
-    final playersController = TextEditingController(
-      text: team?.players.join(', ') ?? '',
-    );
+    
     final formKey = GlobalKey<FormState>();
     bool isLoading = false;
 
@@ -217,7 +218,7 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          backgroundColor: AppTheme.cardDark,
+          backgroundColor: AppTheme.getCardColor(context),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -245,16 +246,6 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                     ),
                     validator: (value) => Validators.validateRequired(value, 'Department'),
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: playersController,
-                    decoration: const InputDecoration(
-                      labelText: 'Players (comma separated)',
-                      prefixIcon: Icon(Icons.person),
-                      hintText: 'John Doe, Jane Smith, ...',
-                    ),
-                    maxLines: 3,
-                  ),
                 ],
               ),
             ),
@@ -272,12 +263,6 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                         setState(() => isLoading = true);
 
                         try {
-                          final playersList = playersController.text
-                              .split(',')
-                              .map((e) => e.trim())
-                              .where((e) => e.isNotEmpty)
-                              .toList();
-
                           if (team == null) {
                             // Add new team
                             final docRef = _firestore.collection('teams').doc();
@@ -286,7 +271,7 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                               name: nameController.text.trim(),
                               department: departmentController.text.trim(),
                               logo: '',
-                              players: playersList,
+                              sportId: null,
                               createdAt: DateTime.now(),
                             );
                             await docRef.set(newTeam.toMap());
@@ -295,7 +280,6 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                             await _firestore.collection('teams').doc(team.id).update({
                               'name': nameController.text.trim(),
                               'department': departmentController.text.trim(),
-                              'players': playersList,
                             });
                           }
 

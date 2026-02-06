@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/models/sport_config_comprehensive.dart';
 import '../../../../core/services/match_scoring_service.dart';
-import '../../../../core/theme/app_theme.dart';
 
 class UniversalLiveScoringScreen extends StatefulWidget {
   final String matchId;
@@ -25,7 +24,7 @@ class _UniversalLiveScoringScreenState
   @override
   Widget build(BuildContext context) {
     // Route to appropriate scoring interface based on sport structure
-    switch (widget.sportConfig.matchStructure.type) {
+    switch (widget.sportConfig.structureType) {
       case StructureType.oversBased:
         return _buildOverBasedInterface();
       case StructureType.timeBased:
@@ -36,8 +35,6 @@ class _UniversalLiveScoringScreenState
         return _buildRoundBasedInterface();
       case StructureType.pointsBased:
         return _buildPointBasedInterface();
-      default:
-        return _buildGenericInterface();
     }
   }
 
@@ -45,7 +42,7 @@ class _UniversalLiveScoringScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text('${widget.sportConfig.name} - Live Scoring'),
-        backgroundColor: widget.sportConfig.uiConfig.primaryColor,
+        backgroundColor: widget.sportConfig.primaryColor,
       ),
       body: StreamBuilder<MatchState>(
         stream: _scoringService.getMatchState(widget.matchId),
@@ -84,7 +81,7 @@ class _UniversalLiveScoringScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text('${widget.sportConfig.name} - Live Scoring'),
-        backgroundColor: widget.sportConfig.uiConfig.primaryColor,
+        backgroundColor: widget.sportConfig.primaryColor,
       ),
       body: StreamBuilder<MatchState>(
         stream: _scoringService.getMatchState(widget.matchId),
@@ -127,7 +124,7 @@ class _UniversalLiveScoringScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text('${widget.sportConfig.name} - Live Scoring'),
-        backgroundColor: widget.sportConfig.uiConfig.primaryColor,
+        backgroundColor: widget.sportConfig.primaryColor,
       ),
       body: StreamBuilder<MatchState>(
         stream: _scoringService.getMatchState(widget.matchId),
@@ -158,8 +155,8 @@ class _UniversalLiveScoringScreenState
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            widget.sportConfig.uiConfig.primaryColor,
-            widget.sportConfig.uiConfig.primaryColor.withOpacity(0.7),
+            widget.sportConfig.primaryColor,
+            widget.sportConfig.primaryColor.withOpacity(0.7),
           ],
         ),
       ),
@@ -251,7 +248,7 @@ class _UniversalLiveScoringScreenState
   }
 
   Widget _buildQuickActionGrid() {
-    final actions = widget.sportConfig.uiConfig.quickActions;
+    final actions = widget.sportConfig.quickActions;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -275,14 +272,14 @@ class _UniversalLiveScoringScreenState
             itemCount: actions.length,
             itemBuilder: (context, index) {
               final action = actions[index];
-              final scoreAction = widget.sportConfig.scoringSystem.scoreActions
+              final scoreAction = widget.sportConfig.scoreActions
                   .firstWhere((sa) => sa.id == action.actionId);
 
               return ElevatedButton(
                 onPressed: () => _handleAction(scoreAction),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: action.isPrimary
-                      ? widget.sportConfig.uiConfig.primaryColor
+                      ? widget.sportConfig.primaryColor
                       : Colors.grey[300],
                   foregroundColor:
                       action.isPrimary ? Colors.white : Colors.black87,

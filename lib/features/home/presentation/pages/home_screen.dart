@@ -25,9 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: AppTheme.getBackgroundDecoration(context),
         child: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
@@ -58,7 +56,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -156,6 +155,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 gradient: AppTheme.successGradient,
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: StatsCard(
+                                icon: Icons.check_circle,
+                                label: 'Completed',
+                                value: completed.toString(),
+                                gradient: LinearGradient(
+                                  colors: [Colors.grey.shade700, Colors.grey.shade900],
+                                ),
+                              ),
+                            ),
                           ],
                         );
                       },
@@ -173,7 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ).animate().fadeIn(delay: 200.ms),
                 ),
-                
+
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
                 StreamBuilder<QuerySnapshot>(
@@ -226,7 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     return SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       sliver: SliverGrid(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
                           childAspectRatio: 1.5,
                           crossAxisSpacing: 12,
@@ -258,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ).animate().fadeIn(delay: 400.ms),
                 ),
-                
+
                 const SliverToBoxAdapter(child: SizedBox(height: 16)),
 
                 StreamBuilder<QuerySnapshot>(

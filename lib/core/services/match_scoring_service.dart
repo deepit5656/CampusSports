@@ -470,9 +470,9 @@ class MatchScoringService {
 
     return MatchResult(
       winnerId: winner.key,
-      resultType: sport.scoringSystem.primaryScoreUnit,
+      resultType: sport.primaryScoreUnit,
       margin: margin as int,
-      description: 'Won by $margin ${sport.scoringSystem.primaryScoreUnit}${margin != 1 ? 's' : ''}',
+      description: 'Won by $margin ${sport.primaryScoreUnit}${margin != 1 ? 's' : ''}',
     );
   }
 }

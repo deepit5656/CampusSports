@@ -84,9 +84,9 @@ class _MainScreenState extends State<MainScreen> {
                 });
               },
               type: BottomNavigationBarType.fixed,
-              backgroundColor: AppTheme.cardDark,
+              backgroundColor: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
               selectedItemColor: AppTheme.primaryGradientStart,
-              unselectedItemColor: AppTheme.textSecondary,
+              unselectedItemColor: Theme.of(context).textTheme.bodySmall?.color,
               items: navItems,
             ),
           ),

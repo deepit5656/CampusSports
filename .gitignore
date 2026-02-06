@@ -51,8 +51,10 @@ app.*.map.json
 *.jks
 *.keystore
 
-# Firebase (keep google-services.json for this project)
+# Firebase - NEVER commit these files (they contain secrets!)
+google-services.json
 GoogleService-Info.plist
+firebase_options.dart
 .firebase/
 
 # Environment files
@@ -100,8 +102,11 @@ GET_STARTED.md
 PROJECT_SUMMARY.md
 PUBLIC_ACCESS_UPDATE.md
 QUICKSTART.md
+QUICK_START_GUIDE.md
 SAMPLE_DATA.md
 TROUBLESHOOTING.md
+IMPLEMENTATION_SUMMARY.md
+SECURITY_FIX_INSTRUCTIONS.md
 
 # Exceptions
 !**/ios/**/default.mode1v3

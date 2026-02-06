@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:uuid/uuid.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/team_model.dart';
-import '../../../../../core/models/cricket/cricket_player.dart';
-import '../../../../../core/services/cricket_scoring_service.dart';
+import '../../../../../core/models/player_model.dart';
+import '../../../../../core/utils/validators.dart';
 
 class CricketTeamsTab extends StatefulWidget {
   final String sportId;
@@ -18,37 +16,104 @@ class CricketTeamsTab extends StatefulWidget {
 
 class _CricketTeamsTabState extends State<CricketTeamsTab> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final _cricketService = CricketScoringService();
-  final _uuid = const Uuid();
+  int? _numberOfPlayers;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNumberOfPlayers();
+  }
+
+  Future<void> _loadNumberOfPlayers() async {
+    final sportDoc = await _firestore.collection('sports').doc(widget.sportId).get();
+    if (sportDoc.exists) {
+      setState(() {
+        _numberOfPlayers = sportDoc.data()?['numberOfPlayers'] as int?;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _firestore
-          .collection('teams')
-          .where('sportId', isEqualTo: widget.sportId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return Column(
+      children: [
+        // Number of players setting at top
+        if (_numberOfPlayers == null)
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.accentGradientStart.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppTheme.accentGradientStart),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, color: AppTheme.accentGradientStart),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Set number of players for Cricket teams',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: _showSetNumberOfPlayersDialog,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.accentGradientStart,
+                  ),
+                  child: const Text('Set Now'),
+                ),
+              ],
+            ),
+          ),
 
-        final teams = snapshot.data!.docs
-            .map((doc) => TeamModel.fromSnapshot(doc))
-            .toList();
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: _firestore
+                .collection('teams')
+                .snapshots(),
+            builder: (context, teamSnapshot) {
+              if (!teamSnapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-        if (teams.isEmpty) {
-          return _buildEmptyState();
-        }
+              final allTeams = teamSnapshot.data!.docs
+                  .map((doc) => TeamModel.fromSnapshot(doc))
+                  .toList();
 
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: teams.length,
-          itemBuilder: (context, index) {
-            return _buildTeamCard(teams[index], index);
-          },
-        );
-      },
+              // Only show teams that have added all required players for cricket
+              return StreamBuilder<QuerySnapshot>(
+                stream: _firestore.collection('players').where('sportId', isEqualTo: widget.sportId).snapshots(),
+                builder: (context, playersSnapshot) {
+                  if (!playersSnapshot.hasData) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  final teams = allTeams.where((team) {
+                    final playerCount = playersSnapshot.data!.docs
+                        .where((doc) => doc.get('teamId') == team.id)
+                        .length;
+                    return _numberOfPlayers != null && playerCount == _numberOfPlayers;
+                  }).toList();
+
+                  if (teams.isEmpty) {
+                    return _buildEmptyState();
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: teams.length,
+                    itemBuilder: (context, index) {
+                      return _buildTeamCard(teams[index], index);
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -64,7 +129,7 @@ class _CricketTeamsTabState extends State<CricketTeamsTab> {
           ),
           const SizedBox(height: 24),
           const Text(
-            'No Teams Yet',
+            'No Complete Teams Yet',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -72,26 +137,15 @@ class _CricketTeamsTabState extends State<CricketTeamsTab> {
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Create your first cricket team',
-            style: TextStyle(
+          Text(
+            _numberOfPlayers == null 
+                ? 'Set number of players first'
+                : 'Teams will appear here once all $_numberOfPlayers players are added',
+            style: const TextStyle(
               color: AppTheme.textSecondary,
               fontSize: 16,
             ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton.icon(
-            onPressed: () => _showCreateTeamDialog(),
-            icon: const Icon(Icons.add),
-            label: const Text('Create Team'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10b981),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -99,533 +153,397 @@ class _CricketTeamsTabState extends State<CricketTeamsTab> {
   }
 
   Widget _buildTeamCard(TeamModel team, int index) {
-    return FutureBuilder<Map<String, int>>(
-      future: _getTeamStats(team.id),
-      builder: (context, statsSnapshot) {
-        final stats = statsSnapshot.data ?? {'played': 0, 'won': 0, 'lost': 0};
-        
+    return StreamBuilder<QuerySnapshot>(
+      stream: _firestore
+          .collection('players')
+          .where('teamId', isEqualTo: team.id)
+          .where('sportId', isEqualTo: widget.sportId)
+          .snapshots(),
+      builder: (context, playersSnapshot) {
+        final playerCount = playersSnapshot.hasData ? playersSnapshot.data!.docs.length : 0;
+        final numberOfPlayers = _numberOfPlayers ?? 0;
+
         return Container(
-          margin: const EdgeInsets.only(bottom: 16),
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: AppTheme.cardDark,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.2),
+                color: Colors.black.withOpacity(0.1),
                 blurRadius: 8,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
-          child: Column(
+          child: Row(
             children: [
-              // Team Header
               Container(
-                padding: const EdgeInsets.all(16),
+                width: 50,
+                height: 50,
                 decoration: BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(16),
-                    topRight: Radius.circular(16),
-                  ),
+                  gradient: AppTheme.accentGradient,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.shield, color: Colors.white, size: 32),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        team.name,
-                        style: const TextStyle(
+                child: Center(
+                  child: Text(
+                    team.name.substring(0, 1).toUpperCase(),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           color: Colors.white,
-                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.white),
-                      onPressed: () => _showEditTeamDialog(team),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.white),
-                      onPressed: () => _showDeleteTeamDialog(team),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-
-              // Team Stats
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildStatItem('Played', stats['played']!),
-                    _buildStatItem('Won', stats['won']!, color: Colors.green),
-                    _buildStatItem('Lost', stats['lost']!, color: Colors.red),
+                    Text(
+                      team.name,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      team.department,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
+                    ),
+                    if (numberOfPlayers > 0) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Players: $playerCount / $numberOfPlayers',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: playerCount == numberOfPlayers
+                                  ? AppTheme.successColor
+                                  : AppTheme.accentGradientStart,
+                            ),
+                      ),
+                    ],
                   ],
                 ),
               ),
-
-              // Players Section
-              FutureBuilder<List<CricketPlayer>>(
-                future: _cricketService.getTeamPlayers(team.id),
-                builder: (context, playersSnapshot) {
-                  if (!playersSnapshot.hasData) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  final players = playersSnapshot.data!;
-                  
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Divider(color: Colors.white24),
-                      Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Players (${players.length})',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () => _showAddPlayerDialog(team),
-                              icon: const Icon(Icons.person_add, size: 18),
-                              label: const Text('Add Player'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF10b981),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 8,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (players.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Center(
-                            child: Text(
-                              'No players added yet',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ),
-                        )
-                      else
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: players.length,
-                          itemBuilder: (context, playerIndex) {
-                            final player = players[playerIndex];
-                            return _buildPlayerTile(player, team);
-                          },
-                        ),
-                    ],
-                  );
-                },
+              IconButton(
+                icon: Icon(Icons.people, color: numberOfPlayers > 0 ? AppTheme.primaryGradientStart : AppTheme.textSecondary),
+                onPressed: numberOfPlayers > 0
+                    ? () => _showPlayersDialog(team)
+                    : null,
               ),
             ],
           ),
-        ).animate(delay: (100 * index).ms).fadeIn().slideX(begin: -0.2, end: 0);
+        );
       },
     );
   }
 
-  Widget _buildStatItem(String label, int value, {Color? color}) {
-    return Column(
-      children: [
-        Text(
-          value.toString(),
-          style: TextStyle(
-            color: color ?? const Color(0xFF10b981),
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+  void _showSetNumberOfPlayersDialog() {
+    final numberOfPlayersController = TextEditingController(
+      text: _numberOfPlayers?.toString() ?? '',
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppTheme.textSecondary,
-            fontSize: 14,
-          ),
+        title: Text('Set Number of Players for Cricket'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: numberOfPlayersController,
+              decoration: const InputDecoration(
+                labelText: 'Number of Players per Team',
+                prefixIcon: Icon(Icons.people),
+                hintText: 'e.g., 11 for standard cricket',
+              ),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'This will apply to all cricket teams',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            ),
+          ],
         ),
-      ],
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final count = int.tryParse(numberOfPlayersController.text.trim());
+              if (count != null && count > 0) {
+                try {
+                  await _firestore.collection('sports').doc(widget.sportId).set({
+                    'numberOfPlayers': count,
+                  }, SetOptions(merge: true));
+                  setState(() {
+                    _numberOfPlayers = count;
+                  });
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Number of players set successfully!'),
+                      backgroundColor: AppTheme.successColor,
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: AppTheme.errorColor,
+                    ),
+                  );
+                }
+              } else {
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid number'),
+                    backgroundColor: AppTheme.errorColor,
+                  ),
+                );
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildPlayerTile(CricketPlayer player, TeamModel team) {
+  void _showPlayersDialog(TeamModel team) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('players')
+            .where('teamId', isEqualTo: team.id)
+            .where('sportId', isEqualTo: widget.sportId)
+            .snapshots(),
+        builder: (context, playersSnapshot) {
+          final players = playersSnapshot.hasData
+              ? playersSnapshot.data!.docs.map((doc) => PlayerModel.fromSnapshot(doc)).toList()
+              : <PlayerModel>[];
+
+          return Dialog(
+            backgroundColor: AppTheme.cardDark,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${team.name} Players',
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.pop(dialogContext),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: _numberOfPlayers ?? 0,
+                      itemBuilder: (context, index) {
+                        final player = index < players.length ? players[index] : null;
+                        return _buildPlayerField(team, index + 1, player);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPlayerField(TeamModel team, int position, PlayerModel? player) {
+    final role = player?.additionalInfo?['role'] as String? ?? '';
+    
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.all(12),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.backgroundDark,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: player != null ? AppTheme.successColor : AppTheme.textSecondary.withOpacity(0.3),
+        ),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFF10b981).withOpacity(0.2),
-            child: Text(
-              player.name[0].toUpperCase(),
-              style: const TextStyle(
-                color: Color(0xFF10b981),
-                fontWeight: FontWeight.bold,
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: player != null ? AppTheme.successColor : AppTheme.textSecondary,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                position.toString(),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  player.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  player?.name ?? 'Empty Slot',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: player != null ? null : AppTheme.textSecondary,
+                      ),
                 ),
-                Text(
-                  _getRoleDisplayName(player.role),
-                  style: const TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
+                if (player != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'ID: ${player.idNumber}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppTheme.textSecondary,
+                        ),
                   ),
-                ),
+                  if (role.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Role: $role',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.accentGradientStart,
+                          ),
+                    ),
+                  ],
+                ],
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.edit, color: Color(0xFF10b981), size: 20),
-            onPressed: () => _showEditPlayerDialog(player, team),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete, color: AppTheme.errorColor, size: 20),
-            onPressed: () => _showDeletePlayerDialog(player, team),
-          ),
+          if (player != null)
+            IconButton(
+              icon: const Icon(Icons.delete, color: AppTheme.errorColor),
+              onPressed: () => _deletePlayer(player),
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.add, color: AppTheme.accentGradientStart),
+              onPressed: () => _showAddPlayerDialog(team, position),
+            ),
         ],
       ),
     );
   }
 
-  Future<Map<String, int>> _getTeamStats(String teamId) async {
-    try {
-      final matchesSnapshot = await _firestore
-          .collection('matches')
-          .where('sportId', isEqualTo: widget.sportId)
-          .get();
-
-      int played = 0;
-      int won = 0;
-      int lost = 0;
-
-      for (var doc in matchesSnapshot.docs) {
-        final data = doc.data();
-        if (data['team1Id'] == teamId || data['team2Id'] == teamId) {
-          if (data['status'] == 'completed') {
-            played++;
-            if (data['winnerId'] == teamId) {
-              won++;
-            } else if (data['winnerId'] != null) {
-              lost++;
-            }
-          }
-        }
-      }
-
-      return {'played': played, 'won': won, 'lost': lost};
-    } catch (e) {
-      return {'played': 0, 'won': 0, 'lost': 0};
-    }
-  }
-
-  void _showCreateTeamDialog() {
+  void _showAddPlayerDialog(TeamModel team, int position) {
     final nameController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Create Team', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: 'Team Name',
-            labelStyle: TextStyle(color: AppTheme.textSecondary),
-            hintText: 'e.g., Mumbai Indians',
-            hintStyle: TextStyle(color: AppTheme.textSecondary.withOpacity(0.5)),
-            filled: true,
-            fillColor: AppTheme.backgroundDark,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                return;
-              }
+    final idController = TextEditingController();
+    String selectedRole = 'Batsman';
+    final formKey = GlobalKey<FormState>();
 
-              final docRef = _firestore.collection('teams').doc();
-              final team = TeamModel(
-                id: docRef.id,
-                name: nameController.text.trim(),
-                department: 'Sports',
-                logo: '',
-                players: [],
-                createdAt: DateTime.now(),
-              );
-
-              await docRef.set(team.toMap());
-              Navigator.pop(dialogContext);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Team created successfully!'),
-                  backgroundColor: AppTheme.successColor,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10b981),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditTeamDialog(TeamModel team) {
-    final nameController = TextEditingController(text: team.name);
-    
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Team', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            labelText: 'Team Name',
-            labelStyle: TextStyle(color: AppTheme.textSecondary),
-            filled: true,
-            fillColor: AppTheme.backgroundDark,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isEmpty) {
-                return;
-              }
-
-              await _firestore.collection('teams').doc(team.id).update({
-                'name': nameController.text.trim(),
-              });
-
-              Navigator.pop(dialogContext);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Team updated successfully!'),
-                  backgroundColor: AppTheme.successColor,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10b981),
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteTeamDialog(TeamModel team) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Team', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Are you sure you want to delete "${team.name}"? This will also delete all players in this team.',
-          style: const TextStyle(color: AppTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              // Delete all players
-              final players = await _cricketService.getTeamPlayers(team.id);
-              for (var player in players) {
-                await _cricketService.deletePlayer(player.id);
-              }
-
-              // Delete team
-              await _firestore.collection('teams').doc(team.id).delete();
-
-              Navigator.pop(dialogContext);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Team deleted successfully!'),
-                  backgroundColor: AppTheme.successColor,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddPlayerDialog(TeamModel team) {
-    final nameController = TextEditingController();
-    PlayerRole selectedRole = PlayerRole.batsman;
-    
     showDialog(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           backgroundColor: AppTheme.cardDark,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Add Player', style: TextStyle(color: Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Player Name',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                  filled: true,
-                  fillColor: AppTheme.backgroundDark,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text('Add Player #$position'),
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Player Name',
+                    prefixIcon: Icon(Icons.person),
                   ),
+                  validator: (value) => Validators.validateRequired(value, 'Player name'),
                 ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<PlayerRole>(
-                value: selectedRole,
-                dropdownColor: AppTheme.backgroundDark,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Role',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                  filled: true,
-                  fillColor: AppTheme.backgroundDark,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: idController,
+                  decoration: const InputDecoration(
+                    labelText: 'ID Number',
+                    prefixIcon: Icon(Icons.badge),
                   ),
+                  validator: (value) => Validators.validateRequired(value, 'ID number'),
                 ),
-                items: PlayerRole.values
-                    .map((role) => DropdownMenuItem(
-                          value: role,
-                          child: Text(_getRoleDisplayName(role)),
-                        ))
-                    .toList(),
-                onChanged: (value) => setState(() => selectedRole = value!),
-              ),
-            ],
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedRole,
+                  decoration: const InputDecoration(
+                    labelText: 'Role',
+                    prefixIcon: Icon(Icons.sports_cricket),
+                  ),
+                  items: ['Batsman', 'Bowler', 'All-rounder', 'Wicket-keeper']
+                      .map((role) => DropdownMenuItem(
+                            value: role,
+                            child: Text(role),
+                          ))
+                      .toList(),
+                  onChanged: (value) => setState(() => selectedRole = value!),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
-                if (nameController.text.trim().isEmpty) {
-                  return;
+                if (formKey.currentState!.validate()) {
+                  final docRef = _firestore.collection('players').doc();
+                  final newPlayer = PlayerModel(
+                    id: docRef.id,
+                    name: nameController.text.trim(),
+                    idNumber: idController.text.trim(),
+                    teamId: team.id,
+                    sportId: widget.sportId,
+                    createdAt: DateTime.now(),
+                    additionalInfo: {'role': selectedRole},
+                  );
+
+                  await docRef.set(newPlayer.toMap());
+                  Navigator.pop(dialogContext);
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Player added successfully!'),
+                      backgroundColor: AppTheme.successColor,
+                    ),
+                  );
                 }
-
-                final player = CricketPlayer(
-                  id: _uuid.v4(),
-                  name: nameController.text.trim(),
-                  teamId: team.id,
-                  role: selectedRole,
-                  createdAt: DateTime.now(),
-                );
-
-                await _cricketService.addPlayer(player);
-                Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Player added successfully!'),
-                    backgroundColor: AppTheme.successColor,
-                  ),
-                );
-
-                setState(() {}); // Refresh the list
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10b981),
-                foregroundColor: Colors.white,
-              ),
               child: const Text('Add'),
             ),
           ],
@@ -634,156 +552,40 @@ class _CricketTeamsTabState extends State<CricketTeamsTab> {
     );
   }
 
-  void _showEditPlayerDialog(CricketPlayer player, TeamModel team) {
-    final nameController = TextEditingController(text: player.name);
-    PlayerRole selectedRole = player.role;
-    
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          backgroundColor: AppTheme.cardDark,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Edit Player', style: TextStyle(color: Colors.white)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                autofocus: true,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Player Name',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                  filled: true,
-                  fillColor: AppTheme.backgroundDark,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<PlayerRole>(
-                value: selectedRole,
-                dropdownColor: AppTheme.backgroundDark,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  labelText: 'Role',
-                  labelStyle: TextStyle(color: AppTheme.textSecondary),
-                  filled: true,
-                  fillColor: AppTheme.backgroundDark,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-                items: PlayerRole.values
-                    .map((role) => DropdownMenuItem(
-                          value: role,
-                          child: Text(_getRoleDisplayName(role)),
-                        ))
-                    .toList(),
-                onChanged: (value) => setState(() => selectedRole = value!),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (nameController.text.trim().isEmpty) {
-                  return;
-                }
-
-                final updatedPlayer = player.copyWith(
-                  name: nameController.text.trim(),
-                  role: selectedRole,
-                );
-
-                await _cricketService.updatePlayer(updatedPlayer);
-                Navigator.pop(dialogContext);
-
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Player updated successfully!'),
-                    backgroundColor: AppTheme.successColor,
-                  ),
-                );
-
-                this.setState(() {}); // Refresh the list
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF10b981),
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Update'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showDeletePlayerDialog(CricketPlayer player, TeamModel team) {
-    showDialog(
+  void _deletePlayer(PlayerModel player) async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.cardDark,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Delete Player', style: TextStyle(color: Colors.white)),
-        content: Text(
-          'Are you sure you want to delete "${player.name}"?',
-          style: const TextStyle(color: AppTheme.textSecondary),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
         ),
+        title: const Text('Delete Player'),
+        content: Text('Remove ${player.name} from the team?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              await _cricketService.deletePlayer(player.id);
-              Navigator.pop(dialogContext);
-
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Player deleted successfully!'),
-                  backgroundColor: AppTheme.successColor,
-                ),
-              );
-
-              setState(() {}); // Refresh the list
-            },
+            onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
-              foregroundColor: Colors.white,
             ),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
-  }
 
-  String _getRoleDisplayName(PlayerRole role) {
-    switch (role) {
-      case PlayerRole.batsman:
-        return 'Batsman';
-      case PlayerRole.bowler:
-        return 'Bowler';
-      case PlayerRole.allRounder:
-        return 'All-rounder';
-      case PlayerRole.wicketKeeper:
-        return 'Wicket-keeper';
+    if (confirm == true) {
+      await _firestore.collection('players').doc(player.id).delete();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Player removed successfully!'),
+          backgroundColor: AppTheme.successColor,
+        ),
+      );
     }
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 }

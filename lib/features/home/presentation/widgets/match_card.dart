@@ -76,7 +76,7 @@ class _MatchCardState extends State<MatchCard> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.cardDark,
+          color: AppTheme.getCardColor(context),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(

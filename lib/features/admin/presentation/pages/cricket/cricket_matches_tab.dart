@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/team_model.dart';
-import '../cricket_match_setup_screen.dart';
+import '../../../../../core/models/player_model.dart';
 
 class CricketMatchesTab extends StatefulWidget {
   final String sportId;
@@ -34,6 +34,12 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
 
   @override
   Widget build(BuildContext context) {
+    if (_matchStarted) {
+      return SingleChildScrollView(
+        child: _buildMatchManagement(),
+      ).animate().fadeIn();
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -139,53 +145,84 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
     required Function(TeamModel?) onChanged,
   }) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore
-          .collection('teams')
-          .where('sportId', isEqualTo: widget.sportId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+      stream: _firestore.collection('teams').snapshots(),
+      builder: (context, teamSnapshot) {
+        if (!teamSnapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final teams = snapshot.data!.docs
+        final allTeams = teamSnapshot.data!.docs
             .map((doc) => TeamModel.fromSnapshot(doc))
             .toList();
 
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundDark,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, color: const Color(0xFF10b981), size: 20),
-              const SizedBox(width: 12),
-              Expanded(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<TeamModel>(
-                    value: value,
-                    hint: Text(
-                      label,
-                      style: TextStyle(color: AppTheme.textSecondary),
-                    ),
-                    isExpanded: true,
-                    dropdownColor: AppTheme.cardDark,
-                    style: const TextStyle(color: Colors.white),
-                    items: teams.map((team) {
-                      return DropdownMenuItem(
-                        value: team,
-                        child: Text(team.name),
-                      );
-                    }).toList(),
-                    onChanged: onChanged,
+        // Filter to show only complete teams (with all players added)
+        return StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('players')
+              .where('sportId', isEqualTo: widget.sportId)
+              .snapshots(),
+          builder: (context, playersSnapshot) {
+            if (!playersSnapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            return StreamBuilder<DocumentSnapshot>(
+              stream: _firestore
+                  .collection('sports')
+                  .doc(widget.sportId)
+                  .snapshots(),
+              builder: (context, sportSnapshot) {
+                final numberOfPlayers =
+                    sportSnapshot.data?.get('numberOfPlayers') as int?;
+
+                final teams = numberOfPlayers != null
+                    ? allTeams.where((team) {
+                        final playerCount = playersSnapshot.data!.docs
+                            .where((doc) => doc.get('teamId') == team.id)
+                            .length;
+                        return playerCount == numberOfPlayers;
+                      }).toList()
+                    : [];
+
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.backgroundDark,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.white.withOpacity(0.1)),
                   ),
-                ),
-              ),
-            ],
-          ),
+                  child: Row(
+                    children: [
+                      Icon(icon, color: const Color(0xFF10b981), size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<TeamModel>(
+                            value: value,
+                            hint: Text(
+                              label,
+                              style: TextStyle(color: AppTheme.textSecondary),
+                            ),
+                            isExpanded: true,
+                            dropdownColor: AppTheme.cardDark,
+                            style: const TextStyle(color: Colors.white),
+                            items: teams.map((team) {
+                              return DropdownMenuItem<TeamModel>(
+                                value: team,
+                                child: Text(team.name),
+                              );
+                            }).toList(),
+                            onChanged: onChanged,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            );
+          },
         );
       },
     );
@@ -287,10 +324,14 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF10b981).withOpacity(0.2) : AppTheme.backgroundDark,
+          color: isSelected
+              ? const Color(0xFF10b981).withOpacity(0.2)
+              : AppTheme.backgroundDark,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isSelected ? const Color(0xFF10b981) : Colors.white.withOpacity(0.1),
+            color: isSelected
+                ? const Color(0xFF10b981)
+                : Colors.white.withOpacity(0.1),
             width: 2,
           ),
         ),
@@ -298,15 +339,20 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-              color: isSelected ? const Color(0xFF10b981) : AppTheme.textSecondary,
+              isSelected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color:
+                  isSelected ? const Color(0xFF10b981) : AppTheme.textSecondary,
               size: 20,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFF10b981) : AppTheme.textSecondary,
+                color: isSelected
+                    ? const Color(0xFF10b981)
+                    : AppTheme.textSecondary,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -381,7 +427,8 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            onTap: () => setState(() => _showAdvancedSettings = !_showAdvancedSettings),
+            onTap: () =>
+                setState(() => _showAdvancedSettings = !_showAdvancedSettings),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -452,7 +499,10 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
           children: [
             const Text(
               'No Ball',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
             ),
             Switch(
               value: _noBallEnabled,
@@ -487,7 +537,8 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Runs',
-                    labelStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                    labelStyle:
+                        TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                     filled: true,
                     fillColor: AppTheme.backgroundDark,
                     isDense: true,
@@ -514,7 +565,10 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
           children: [
             const Text(
               'Wide Ball',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
             ),
             Switch(
               value: _wideBallEnabled,
@@ -532,7 +586,8 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
                   children: [
                     Checkbox(
                       value: _wideBallReball,
-                      onChanged: (val) => setState(() => _wideBallReball = val!),
+                      onChanged: (val) =>
+                          setState(() => _wideBallReball = val!),
                       activeColor: const Color(0xFF10b981),
                     ),
                     const Text(
@@ -549,7 +604,8 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Runs',
-                    labelStyle: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                    labelStyle:
+                        TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                     filled: true,
                     fillColor: AppTheme.backgroundDark,
                     isDense: true,
@@ -627,20 +683,316 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
 
     // Determine which team bats first
     final tossWinner = _tossWonBy == 'host' ? _hostTeam! : _visitorTeam!;
-    final team1 = _optedTo == 'bat' ? tossWinner : (_tossWonBy == 'host' ? _visitorTeam! : _hostTeam!);
-    final team2 = team1.id == _hostTeam!.id ? _visitorTeam! : _hostTeam!;
+    final battingTeam = _optedTo == 'bat'
+        ? tossWinner
+        : (_tossWonBy == 'host' ? _visitorTeam! : _hostTeam!);
+    final bowlingTeam =
+        battingTeam.id == _hostTeam!.id ? _visitorTeam! : _hostTeam!;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => CricketMatchSetupScreen(
-          matchId: _firestore.collection('matches').doc().id,
-          team1Id: team1.id,
-          team1Name: team1.name,
-          team2Id: team2.id,
-          team2Name: team2.name,
+    // Show inline match management
+    setState(() {
+      _matchStarted = true;
+      _battingTeam = battingTeam;
+      _bowlingTeam = bowlingTeam;
+      _overs = overs;
+    });
+  }
+
+  // Match state
+  bool _matchStarted = false;
+  TeamModel? _battingTeam;
+  TeamModel? _bowlingTeam;
+  int? _overs;
+  int _runs = 0;
+  int _wickets = 0;
+  double _currentOver = 0.0;
+  int _ballsInOver = 0;
+  String? _striker;
+  String? _nonStriker;
+  String? _currentBowler;
+
+  List<Map<String, dynamic>> _scoreHistory = [];
+
+  void _recordBall(int runs,
+      {bool isWide = false, bool isNoBall = false, bool isWicket = false}) {
+    setState(() {
+      if (isWide || isNoBall) {
+        _runs += runs + 1; // Extra run for wide/no-ball
+        // Don't increment ball count for wide/no-ball
+      } else {
+        _runs += runs;
+        _ballsInOver++;
+
+        if (_ballsInOver == 6) {
+          _currentOver++;
+          _ballsInOver = 0;
+        } else {
+          _currentOver = _currentOver.floor() + (_ballsInOver / 10.0);
+        }
+      }
+
+      if (isWicket) {
+        _wickets++;
+      }
+
+      if (runs % 2 == 1) {
+        // Swap striker and non-striker on odd runs
+        final temp = _striker;
+        _striker = _nonStriker;
+        _nonStriker = temp;
+      }
+
+      _scoreHistory.add({
+        'ball': _currentOver.toStringAsFixed(1),
+        'runs': runs,
+        'isWide': isWide,
+        'isNoBall': isNoBall,
+        'isWicket': isWicket,
+        'totalRuns': _runs,
+        'totalWickets': _wickets,
+      });
+    });
+  }
+
+  Widget _buildMatchManagement() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Scoreboard
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  _battingTeam!.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '$_runs / $_wickets',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Overs: ${_currentOver.toStringAsFixed(1)} / $_overs',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Players
+          Row(
+            children: [
+              Expanded(
+                child: _buildPlayerCard('Striker', _striker, true),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPlayerCard('Non-Striker', _nonStriker, false),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildPlayerCard('Bowler', _currentBowler, false, isBowler: true),
+          const SizedBox(height: 24),
+
+          // Scoring buttons
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildScoreButton('0', 0),
+              _buildScoreButton('1', 1),
+              _buildScoreButton('2', 2),
+              _buildScoreButton('3', 3),
+              _buildScoreButton('4', 4),
+              _buildScoreButton('6', 6),
+              _buildScoreButton('Wide', 0, isWide: true),
+              _buildScoreButton('No Ball', 0, isNoBall: true),
+              _buildScoreButton('Wicket', 0, isWicket: true),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Current over
+          if (_scoreHistory.isNotEmpty) ...[
+            const Text(
+              'Current Over',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: (_scoreHistory.length <= 6
+                      ? _scoreHistory
+                      : _scoreHistory.sublist(_scoreHistory.length - 6))
+                  .map((ball) {
+                return Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: ball['isWicket']
+                        ? AppTheme.errorColor
+                        : AppTheme.cardDark,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: ball['isWide'] || ball['isNoBall']
+                          ? AppTheme.accentGradientStart
+                          : Colors.transparent,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      ball['isWicket'] ? 'W' : ball['runs'].toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          const SizedBox(height: 24),
+
+          // End match button
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _matchStarted = false;
+                _runs = 0;
+                _wickets = 0;
+                _currentOver = 0.0;
+                _ballsInOver = 0;
+                _scoreHistory.clear();
+                _striker = null;
+                _nonStriker = null;
+                _currentBowler = null;
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+            child: const Text('End Match'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerCard(String role, String? playerName, bool isStriker,
+      {bool isBowler = false}) {
+    return GestureDetector(
+      onTap: () => _selectPlayer(role, isBowler),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isStriker
+                ? AppTheme.accentGradientStart
+                : AppTheme.textSecondary.withOpacity(0.3),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              role,
+              style: TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              playerName ?? 'Select Player',
+              style: TextStyle(
+                color:
+                    playerName != null ? Colors.white : AppTheme.textSecondary,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
+    );
+  }
+
+  void _selectPlayer(String role, bool isBowler) async {
+    final team = isBowler ? _bowlingTeam! : _battingTeam!;
+    final playersSnapshot = await _firestore
+        .collection('players')
+        .where('teamId', isEqualTo: team.id)
+        .where('sportId', isEqualTo: widget.sportId)
+        .get();
+
+    final players =
+        playersSnapshot.docs.map((doc) => doc.get('name') as String).toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardDark,
+        title: Text('Select $role'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: players.map((player) {
+            return ListTile(
+              title: Text(player),
+              onTap: () {
+                setState(() {
+                  if (role == 'Striker')
+                    _striker = player;
+                  else if (role == 'Non-Striker')
+                    _nonStriker = player;
+                  else if (role == 'Bowler') _currentBowler = player;
+                });
+                Navigator.pop(context);
+              },
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScoreButton(String label, int runs,
+      {bool isWide = false, bool isNoBall = false, bool isWicket = false}) {
+    return ElevatedButton(
+      onPressed: () => _recordBall(runs,
+          isWide: isWide, isNoBall: isNoBall, isWicket: isWicket),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isWicket ? AppTheme.errorColor : AppTheme.cardDark,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
+      child: Text(label),
     );
   }
 }

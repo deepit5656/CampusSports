@@ -18,7 +18,6 @@ class MatchResultCalculator {
     }
     
     final winnerName = match.winnerId == team1.id ? team1.name : team2.name;
-    final loserName = match.winnerId == team1.id ? team2.name : team1.name;
     
     // Get winning margin based on sport type
     final margin = _getWinningMargin(match, sport, team1, team2);

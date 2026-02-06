@@ -6,6 +6,9 @@ import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../../auth/presentation/pages/login_screen.dart';
+import 'edit_profile_screen.dart';
+import 'notifications_screen.dart';
+import 'appearance_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -14,9 +17,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: AppTheme.getBackgroundDecoration(context),
         child: SafeArea(
           child: BlocBuilder<AuthBloc, AuthState>(
             builder: (context, state) {
@@ -35,13 +36,7 @@ class ProfileScreen extends StatelessWidget {
                   children: [
                     // Header
                     Container(
-                      decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
-                        borderRadius: const BorderRadius.only(
-                          bottomLeft: Radius.circular(30),
-                          bottomRight: Radius.circular(30),
-                        ),
-                      ),
+                      decoration: AppTheme.getHeaderDecoration(context),
                       padding: const EdgeInsets.all(40),
                       child: Column(
                         children: [
@@ -140,7 +135,12 @@ class ProfileScreen extends StatelessWidget {
                             'Edit Profile',
                             'Update your personal information',
                             () {
-                              // TODO: Navigate to edit profile
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const EditProfileScreen(),
+                                ),
+                              );
                             },
                           ).animate().fadeIn(delay: 500.ms).slideX(begin: -0.2, end: 0),
                           
@@ -152,7 +152,12 @@ class ProfileScreen extends StatelessWidget {
                             'Notifications',
                             'Manage notification preferences',
                             () {
-                              // TODO: Navigate to notifications settings
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const NotificationsScreen(),
+                                ),
+                              );
                             },
                           ).animate().fadeIn(delay: 600.ms).slideX(begin: -0.2, end: 0),
                           
@@ -164,7 +169,12 @@ class ProfileScreen extends StatelessWidget {
                             'Appearance',
                             'Theme and display settings',
                             () {
-                              // TODO: Navigate to appearance settings
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AppearanceScreen(),
+                                ),
+                              );
                             },
                           ).animate().fadeIn(delay: 700.ms).slideX(begin: -0.2, end: 0),
                           
@@ -311,7 +321,7 @@ class ProfileScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: AppTheme.cardDark,
+                    color: AppTheme.getCardColor(context),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
@@ -434,7 +444,7 @@ class ProfileScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.cardDark,
+        color: AppTheme.getCardColor(context),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -492,7 +502,7 @@ class ProfileScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark,
+          color: AppTheme.getCardColor(context),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(

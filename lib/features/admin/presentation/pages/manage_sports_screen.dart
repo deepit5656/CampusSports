@@ -4,9 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/sport_config_comprehensive.dart';
 import '../../../../core/models/default_sport_configurations_comprehensive.dart';
-import '../../../../core/utils/validators.dart';
 import 'sport_configuration_screen.dart';
-import 'cricket/cricket_management_screen.dart';
+import 'universal_sport_management_screen.dart';
 
 class ManageSportsScreen extends StatefulWidget {
   const ManageSportsScreen({super.key});
@@ -78,9 +77,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: AppTheme.getBackgroundDecoration(context),
         child: SafeArea(
           child: Column(
             children: [
@@ -194,16 +191,15 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
   }
 
   Widget _buildSportCard(SportConfigModel sport, int index) {
-    final isCricket = sport.id == 'cricket';
     final icon = _getSportIcon(sport.icon);
     
     return InkWell(
-      onTap: isCricket ? () => _navigateToCricketManagement(sport) : () => _navigateToSportManagement(sport),
+      onTap: () => _navigateToSportManagement(sport),
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark,
+          color: AppTheme.getCardColor(context),
           borderRadius: BorderRadius.circular(16),
           border: sport.isDefault
               ? Border.all(color: AppTheme.primaryGradientStart.withOpacity(0.3), width: 2)
@@ -279,26 +275,29 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
                       ),
                       const SizedBox(height: 8),
                       
-                      // Sport Details Row
-                        Row(
-                        children: [
-                          _buildInfoChip(
-                            sport.getStructureDisplayText(),
-                            Icons.access_time,
-                          ),
-                          const SizedBox(width: 8),
-                          _buildInfoChip(
-                            '${sport.playingPlayers} Players',
-                            Icons.group,
-                          ),
-                          if (sport.primaryScoreUnit.isNotEmpty) ...[
+                      // Sport Details Row - Fixed overflow issue
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildInfoChip(
+                              sport.getStructureDisplayText(),
+                              Icons.access_time,
+                            ),
                             const SizedBox(width: 8),
                             _buildInfoChip(
-                              sport.primaryScoreUnit.toUpperCase(),
-                              Icons.emoji_events,
+                              '${sport.playingPlayers} Players',
+                              Icons.group,
                             ),
+                            if (sport.primaryScoreUnit.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              _buildInfoChip(
+                                sport.primaryScoreUnit.toUpperCase(),
+                                Icons.emoji_events,
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
                     ],
                   ),
@@ -307,19 +306,22 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
                 // Action Buttons Column
                 Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10b981).withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFF10b981)),
-                      ),
-                      child: const Text(
-                        'Manage',
-                        style: TextStyle(
-                          color: Color(0xFF10b981),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                    GestureDetector(
+                      onTap: () => _navigateToSportManagement(sport),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10b981).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFF10b981)),
+                        ),
+                        child: const Text(
+                          'Manage',
+                          style: TextStyle(
+                            color: Color(0xFF10b981),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -401,43 +403,15 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
     }
   }
 
-  String _getStructureDisplayText(String matchType, int duration) {
-    switch (matchType) {
-      case 'time':
-        return '${duration}min';
-      case 'overs':
-        return '$duration Overs';
-      case 'sets':
-        return 'Best of $duration';
-      case 'rounds':
-        return '$duration Rounds';
-      case 'points':
-        return 'First to $duration';
-      default:
-        return '${duration}min';
-    }
-  }
-
-  void _navigateToCricketManagement(SportConfigModel sport) {
+  void _navigateToSportManagement(SportConfigModel sport) {
+    // All sports now use universal management (Teams + History)
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CricketManagementScreen(
+        builder: (context) => UniversalSportManagementScreen(
           sportId: sport.id,
           sportName: sport.name,
-        ),
-      ),
-    );
-  }
-
-  void _navigateToSportManagement(SportConfigModel sport) {
-    // For now, navigate to the configuration screen in read-only mode for default sports
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SportConfigurationScreen(
           sportConfig: sport,
-          isReadOnly: sport.isDefault,
         ),
       ),
     );

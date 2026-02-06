@@ -61,7 +61,9 @@ class SportModel extends Equatable {
       scoringConfig: map['scoringConfig'] != null
           ? ScoringConfig.fromMap(map['scoringConfig'])
           : SportTemplate.getDefaultTemplate(),
-      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      createdAt: map['createdAt'] != null 
+          ? (map['createdAt'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 

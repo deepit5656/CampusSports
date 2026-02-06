@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -33,9 +34,7 @@ class _StandingsScreenState extends State<StandingsScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: AppTheme.getBackgroundDecoration(context),
         child: SafeArea(
           child: Column(
             children: [
@@ -54,13 +53,17 @@ class _StandingsScreenState extends State<StandingsScreen> {
                     Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          icon:
+                              const Icon(Icons.arrow_back, color: Colors.white),
                           onPressed: () => Navigator.pop(context),
                         ),
                         Expanded(
                           child: Text(
                             'Standings',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -80,20 +83,23 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                 height: 16,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white),
                                 ),
                               )
                             : const Icon(Icons.refresh),
-                        label: Text(_isCalculating ? 'Calculating...' : 'Recalculate'),
+                        label: Text(
+                            _isCalculating ? 'Calculating...' : 'Recalculate'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white.withOpacity(0.2),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
                         ),
                       ),
                     ],
                     const SizedBox(height: 16),
-                    
+
                     // Sport Selector
                     StreamBuilder<QuerySnapshot>(
                       stream: _firestore.collection('sports').snapshots(),
@@ -102,9 +108,21 @@ class _StandingsScreenState extends State<StandingsScreen> {
                           return const SizedBox();
                         }
 
-                        final sports = snapshot.data!.docs
-                            .map((doc) => SportModel.fromSnapshot(doc))
-                            .toList();
+                        // Parse sports and deduplicate by ID
+                        final sportsMap = <String, SportModel>{};
+                        for (var doc in snapshot.data!.docs) {
+                          try {
+                            final sport = SportModel.fromSnapshot(doc);
+                            // Use document ID to ensure uniqueness
+                            if (!sportsMap.containsKey(doc.id)) {
+                              sportsMap[doc.id] = sport;
+                            }
+                          } catch (e) {
+                            print('Error parsing sport ${doc.id}: $e');
+                          }
+                        }
+
+                        final sports = sportsMap.values.toList();
 
                         if (sports.isEmpty) {
                           return const Text(
@@ -113,8 +131,22 @@ class _StandingsScreenState extends State<StandingsScreen> {
                           );
                         }
 
-                        if (_selectedSportId == null && sports.isNotEmpty) {
-                          _selectedSportId = sports.first.id;
+                        // Get unique sport IDs from the map keys
+                        final sportIds = sportsMap.keys.toList();
+
+                        // Ensure selected sport exists in the list
+                        if (_selectedSportId == null ||
+                            !sportIds.contains(_selectedSportId)) {
+                          SchedulerBinding.instance.addPostFrameCallback((_) {
+                            if (mounted) {
+                              setState(() {
+                                _selectedSportId =
+                                    sportIds.isNotEmpty ? sportIds.first : null;
+                              });
+                            }
+                          });
+                          _selectedSportId =
+                              sportIds.isNotEmpty ? sportIds.first : null;
                         }
 
                         return Container(
@@ -126,12 +158,14 @@ class _StandingsScreenState extends State<StandingsScreen> {
                           child: DropdownButton<String>(
                             value: _selectedSportId,
                             isExpanded: true,
-                            dropdownColor: AppTheme.cardDark,
+                            dropdownColor: AppTheme.getCardColor(context),
                             underline: const SizedBox(),
-                            icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: Colors.white,
-                                ),
+                            icon: const Icon(Icons.arrow_drop_down,
+                                color: Colors.white),
+                            style:
+                                Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: Colors.white,
+                                    ),
                             items: sports.map((sport) {
                               return DropdownMenuItem(
                                 value: sport.id,
@@ -147,9 +181,9 @@ class _StandingsScreenState extends State<StandingsScreen> {
                         );
                       },
                     ),
-                    
+
                     const SizedBox(height: 12),
-                    
+
                     // Category Selector
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -162,7 +196,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                         isExpanded: true,
                         dropdownColor: AppTheme.cardDark,
                         underline: const SizedBox(),
-                        icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+                        icon: const Icon(Icons.arrow_drop_down,
+                            color: Colors.white),
                         style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: Colors.white,
                             ),
@@ -223,7 +258,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                               if (a.points != b.points) {
                                 return b.points.compareTo(a.points);
                               }
-                              return b.goalDifference.compareTo(a.goalDifference);
+                              return b.goalDifference
+                                  .compareTo(a.goalDifference);
                             });
 
                             if (standings.isEmpty) {
@@ -239,7 +275,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                     const SizedBox(height: 16),
                                     Text(
                                       'No standings available',
-                                      style: Theme.of(context).textTheme.bodyLarge,
+                                      style:
+                                          Theme.of(context).textTheme.bodyLarge,
                                     ),
                                   ],
                                 ),
@@ -294,7 +331,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                       future: _getTeam(standing.teamId),
                                       builder: (context, teamSnapshot) {
                                         final team = teamSnapshot.data;
-                                        final teamName = team?.name ?? 'Loading...';
+                                        final teamName =
+                                            team?.name ?? 'Loading...';
 
                                         return Container(
                                           padding: const EdgeInsets.all(16),
@@ -321,7 +359,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                                       .textTheme
                                                       .bodyLarge
                                                       ?.copyWith(
-                                                        fontWeight: FontWeight.bold,
+                                                        fontWeight:
+                                                            FontWeight.bold,
                                                         color: isTopFour
                                                             ? AppTheme
                                                                 .primaryGradientStart
@@ -339,19 +378,22 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                                       width: 32,
                                                       height: 32,
                                                       decoration: BoxDecoration(
-                                                        color: AppTheme.surfaceDark,
+                                                        color: AppTheme
+                                                            .surfaceDark,
                                                         shape: BoxShape.circle,
                                                       ),
                                                       child: Center(
                                                         child: Text(
                                                           teamName.isNotEmpty
                                                               ? teamName
-                                                                  .substring(0, 1)
+                                                                  .substring(
+                                                                      0, 1)
                                                                   .toUpperCase()
                                                               : '?',
-                                                          style: Theme.of(context)
-                                                              .textTheme
-                                                              .bodyMedium,
+                                                          style:
+                                                              Theme.of(context)
+                                                                  .textTheme
+                                                                  .bodyMedium,
                                                         ),
                                                       ),
                                                     ),
@@ -363,7 +405,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                                             .textTheme
                                                             .bodyMedium,
                                                         maxLines: 1,
-                                                        overflow: TextOverflow.ellipsis,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
                                                       ),
                                                     ),
                                                   ],
@@ -372,8 +415,10 @@ class _StandingsScreenState extends State<StandingsScreen> {
 
                                               _buildDataCell(
                                                   context, standing.played),
-                                              _buildDataCell(context, standing.won),
-                                              _buildDataCell(context, standing.lost),
+                                              _buildDataCell(
+                                                  context, standing.won),
+                                              _buildDataCell(
+                                                  context, standing.lost),
                                               _buildDataCell(
                                                 context,
                                                 standing.points,
@@ -382,7 +427,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
                                             ],
                                           ),
                                         )
-                                            .animate(delay: (200 + (index * 50)).ms)
+                                            .animate(
+                                                delay: (200 + (index * 50)).ms)
                                             .fadeIn()
                                             .slideX(begin: -0.2, end: 0);
                                       },
@@ -451,7 +497,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
             content: const Text('Standings recalculated successfully!'),
             backgroundColor: AppTheme.successColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -462,7 +509,8 @@ class _StandingsScreenState extends State<StandingsScreen> {
             content: Text('Error: $e'),
             backgroundColor: AppTheme.errorColor,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }

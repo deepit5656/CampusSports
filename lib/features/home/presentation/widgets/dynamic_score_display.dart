@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/team_model.dart';
-import '../../../../core/models/team_score_model.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class DynamicScoreDisplay extends StatelessWidget {

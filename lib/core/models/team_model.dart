@@ -6,16 +6,20 @@ class TeamModel extends Equatable {
   final String name;
   final String department;
   final String logo;
-  final List<String> players;
+  final String? sportId; // Sport this team belongs to
+  final int? numberOfPlayers; // Number of players in this team for the sport
   final DateTime createdAt;
+  final Map<String, dynamic>? additionalInfo; // Any additional team information
 
   const TeamModel({
     required this.id,
     required this.name,
     required this.department,
     required this.logo,
-    required this.players,
+    this.sportId,
+    this.numberOfPlayers,
     required this.createdAt,
+    this.additionalInfo,
   });
 
   Map<String, dynamic> toMap() {
@@ -24,8 +28,10 @@ class TeamModel extends Equatable {
       'name': name,
       'department': department,
       'logo': logo,
-      'players': players,
+      'sportId': sportId,
+      'numberOfPlayers': numberOfPlayers,
       'createdAt': Timestamp.fromDate(createdAt),
+      'additionalInfo': additionalInfo,
     };
   }
 
@@ -35,8 +41,10 @@ class TeamModel extends Equatable {
       name: map['name'] ?? '',
       department: map['department'] ?? '',
       logo: map['logo'] ?? '',
-      players: List<String>.from(map['players'] ?? []),
+      sportId: map['sportId'],
+      numberOfPlayers: map['numberOfPlayers'] as int?,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
+      additionalInfo: map['additionalInfo'] as Map<String, dynamic>?,
     );
   }
 
@@ -50,19 +58,23 @@ class TeamModel extends Equatable {
     String? name,
     String? department,
     String? logo,
-    List<String>? players,
+    String? sportId,
+    int? numberOfPlayers,
     DateTime? createdAt,
+    Map<String, dynamic>? additionalInfo,
   }) {
     return TeamModel(
       id: id ?? this.id,
       name: name ?? this.name,
       department: department ?? this.department,
       logo: logo ?? this.logo,
-      players: players ?? this.players,
+      sportId: sportId ?? this.sportId,
+      numberOfPlayers: numberOfPlayers ?? this.numberOfPlayers,
       createdAt: createdAt ?? this.createdAt,
+      additionalInfo: additionalInfo ?? this.additionalInfo,
     );
   }
 
   @override
-  List<Object?> get props => [id, name, department, logo, players, createdAt];
+  List<Object?> get props => [id, name, department, logo, sportId, numberOfPlayers, createdAt, additionalInfo];
 }
