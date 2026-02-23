@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
+import '../../../../../core/services/standings_service.dart';
 
 class TableTennisMatchControlScreen extends StatefulWidget {
   final MatchModel match;
@@ -15,6 +16,7 @@ class TableTennisMatchControlScreen extends StatefulWidget {
 
 class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final StandingsService _standingsService = StandingsService();
   
   Map<String, dynamic> _matchData = {};
   bool _isLoading = true;
@@ -25,6 +27,11 @@ class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlS
   int _totalSets = 5; // Best of 5 sets
   Map<int, Map<String, int>> _setScores = {}; // {1: {team1: 11, team2: 9}}
   List<String> _events = [];
+  
+  // Configurable table tennis settings
+  int _pointsPerSet = 11;  // Default: 11 points per set
+  int _setsToWinMatch = 3;  // Default: best of 5 (first to 3)
+  DateTime? _lastSaveTime;  // For debouncing save messages
 
   @override
   void initState() {
@@ -51,6 +58,10 @@ class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlS
         _matchData = data['tableTennisMatchData'] as Map<String, dynamic>;
         _currentSet = _matchData['currentSet'] ?? 1;
         _totalSets = _matchData['totalSets'] ?? 5;
+        
+        // Load configurable settings
+        _pointsPerSet = _matchData['pointsPerSet'] ?? 11;
+        _setsToWinMatch = _matchData['setsToWinMatch'] ?? 3;
         
         // Load set scores
         if (_matchData['setScores'] != null) {
@@ -89,15 +100,15 @@ class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlS
       int team2SetsWon = 0;
       
       _setScores.forEach((set, scores) {
-        if (scores['team1']! >= 11 && scores['team1']! - scores['team2']! >= 2) {
+        if (scores['team1']! >= _pointsPerSet && scores['team1']! - scores['team2']! >= 2) {
           team1SetsWon++;
-        } else if (scores['team2']! >= 11 && scores['team2']! - scores['team1']! >= 2) {
+        } else if (scores['team2']! >= _pointsPerSet && scores['team2']! - scores['team1']! >= 2) {
           team2SetsWon++;
         }
       });
 
-      // Determine winner (best of 5 = need 3 sets, best of 7 = need 4 sets)
-      final setsToWin = (_totalSets / 2).ceil();
+      // Determine winner
+      final setsToWin = (_setsToWinMatch / 2).ceil();
       String? winnerId;
       if (team1SetsWon >= setsToWin) winnerId = widget.match.team1Id;
       if (team2SetsWon >= setsToWin) winnerId = widget.match.team2Id;
@@ -110,6 +121,8 @@ class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlS
           'events': _events,
           'team1SetsWon': team1SetsWon,
           'team2SetsWon': team2SetsWon,
+          'pointsPerSet': _pointsPerSet,
+          'setsToWinMatch': _setsToWinMatch,
         },
         'score': {
           widget.match.team1Id: team1SetsWon,
@@ -120,6 +133,31 @@ class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlS
       };
 
       await _firestore.collection('matches').doc(widget.match.id).update(matchData);
+
+      // Update standings if match is completed
+      if (winnerId != null) {
+        try {
+          MatchModel updatedMatch = MatchModel(
+            id: widget.match.id,
+            sportId: widget.match.sportId,
+            team1Id: widget.match.team1Id,
+            team2Id: widget.match.team2Id,
+            dateTime: widget.match.dateTime,
+            venue: widget.match.venue,
+            status: 'completed',
+            category: widget.match.category,
+            score: {
+              widget.match.team1Id: team1SetsWon,
+              widget.match.team2Id: team2SetsWon,
+            },
+            createdAt: widget.match.createdAt,
+            winnerId: winnerId,
+          );
+          await _standingsService.onMatchCompleted(updatedMatch);
+        } catch (e) {
+          print('Error updating standings: $e');
+        }
+      }
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -146,14 +184,14 @@ class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlS
       final team1Score = _setScores[_currentSet]!['team1']!;
       final team2Score = _setScores[_currentSet]!['team2']!;
       
-      // Check if set is won (need 11 points and 2 point lead)
-      if ((team1Score >= 11 && team1Score - team2Score >= 2) ||
-          (team2Score >= 11 && team2Score - team1Score >= 2)) {
+      // Check if set is won (need configurable points and 2 point lead)
+      if ((team1Score >= _pointsPerSet && team1Score - team2Score >= 2) ||
+          (team2Score >= _pointsPerSet && team2Score - team1Score >= 2)) {
         final winner = team1Score > team2Score ? _team1Name : _team2Name;
         _events.insert(0, '${DateFormat('HH:mm').format(DateTime.now())} - Set $_currentSet won by $winner ($team1Score-$team2Score)');
       }
     });
-    _saveMatchData();
+    _saveMatchDataWithDebounce();
   }
 
   void _removePoint(String team) {
@@ -164,7 +202,53 @@ class _TableTennisMatchControlScreenState extends State<TableTennisMatchControlS
         _setScores[_currentSet]!['team2'] = _setScores[_currentSet]!['team2']! - 1;
       }
     });
+    _saveMatchDataWithDebounce();
+  }
+
+  void _saveMatchDataWithDebounce() {
+    // Prevent repeated save messages within 2 seconds
+    final now = DateTime.now();
+    if (_lastSaveTime != null && now.difference(_lastSaveTime!).inMilliseconds < 2000) {
+      // Just save without showing message
+      _saveMatchDataSilently();
+      return;
+    }
+    
+    _lastSaveTime = now;
     _saveMatchData();
+  }
+  
+  void _saveMatchDataSilently() async {
+    try {
+      // Calculate total sets won
+      int team1SetsWon = 0;
+      int team2SetsWon = 0;
+      
+      _setScores.forEach((set, scores) {
+        if (scores['team1']! >= _pointsPerSet && scores['team1']! - scores['team2']! >= 2) {
+          team1SetsWon++;
+        } else if (scores['team2']! >= _pointsPerSet && scores['team2']! - scores['team1']! >= 2) {
+          team2SetsWon++;
+        }
+      });
+
+      final matchData = {
+        'tableTennisMatchData': {
+          'currentSet': _currentSet,
+          'totalSets': _totalSets,
+          'setScores': _setScores.map((key, value) => MapEntry(key.toString(), value)),
+          'events': _events,
+          'team1SetsWon': team1SetsWon,
+          'team2SetsWon': team2SetsWon,
+          'pointsPerSet': _pointsPerSet,
+          'setsToWinMatch': _setsToWinMatch,
+        },
+      };
+
+      await _firestore.collection('matches').doc(widget.match.id).update(matchData);
+    } catch (e) {
+      print('Error saving match data silently: $e');
+    }
   }
 
   @override

@@ -4,6 +4,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
 import '../../../../../core/models/team_model.dart';
+import '../../../../../core/models/default_sport_configurations_comprehensive.dart';
+import '../../../../scoring/presentation/pages/universal_live_scoring_screen.dart';
 
 class CricketMatchControlScreen extends StatefulWidget {
   final String matchId;
@@ -822,15 +824,37 @@ class _CricketMatchControlScreenState extends State<CricketMatchControlScreen> {
       return;
     }
 
-    // For now, show a message that scoring will be available soon
-    // In the future, this can navigate to a dedicated cricket scoring screen
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Cricket scoring interface - Coming soon!'),
-        backgroundColor: AppTheme.primaryGradientStart,
-        duration: Duration(seconds: 2),
-      ),
-    );
+    try {
+      // Get cricket sport configuration
+      final cricketConfig = DefaultSportConfigurations.getCricketConfig();
+      
+      // Update match status to live
+      await _firestore.collection('matches').doc(widget.matchId).update({
+        'status': 'live',
+      });
+
+      // Navigate to scoring screen
+      if (mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UniversalLiveScoringScreen(
+              matchId: widget.matchId,
+              sportConfig: cricketConfig,
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error starting match: $e'),
+            backgroundColor: AppTheme.errorColor,
+          ),
+        );
+      }
+    }
   }
 
   @override

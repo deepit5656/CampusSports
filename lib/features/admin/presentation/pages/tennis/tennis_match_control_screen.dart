@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
+import '../../../../../core/services/standings_service.dart';
 
 class TennisMatchControlScreen extends StatefulWidget {
   final MatchModel match;
@@ -14,6 +15,7 @@ class TennisMatchControlScreen extends StatefulWidget {
 
 class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final StandingsService _standingsService = StandingsService();
   
   // Match state
   int team1Sets = 0;
@@ -26,6 +28,12 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
   int team1TiebreakPoints = 0;
   int team2TiebreakPoints = 0;
   String? server; // 'team1' or 'team2'
+  
+  // Configurable tennis settings
+  int _gamesPerSet = 6;  // Default: first to 6 games per set
+  int _tiebreakPoints = 7;  // Default: first to 7 in tiebreak
+  int _setsToWinMatch = 2;  // Default: best of 3 (first to 2)
+  DateTime? _lastSaveTime;  // For debouncing save messages
   
   @override
   void initState() {
@@ -51,6 +59,11 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
             team1TiebreakPoints = tennisData['team1TiebreakPoints'] ?? 0;
             team2TiebreakPoints = tennisData['team2TiebreakPoints'] ?? 0;
             server = tennisData['server'];
+            
+            // Load configurable settings
+            _gamesPerSet = tennisData['gamesPerSet'] ?? 6;
+            _tiebreakPoints = tennisData['tiebreakPoints'] ?? 7;
+            _setsToWinMatch = tennisData['setsToWinMatch'] ?? 2;
             
             final sets = tennisData['setScores'] as List?;
             if (sets != null) {
@@ -78,10 +91,51 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
           'team2TiebreakPoints': team2TiebreakPoints,
           'setScores': setScores,
           'server': server,
+          'gamesPerSet': _gamesPerSet,
+          'tiebreakPoints': _tiebreakPoints,
+          'setsToWinMatch': _setsToWinMatch,
         },
         'score': {
           widget.match.team1Id: team1Sets,
           widget.match.team2Id: team2Sets,
+        },
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Match data saved'), duration: Duration(milliseconds: 800)),
+      );
+    } catch (e) {
+      print('Error saving match data: $e');
+    }
+  }
+
+  void _saveMatchDataWithDebounce() {
+    final now = DateTime.now();
+    if (_lastSaveTime != null && 
+        now.difference(_lastSaveTime!).inMilliseconds < 2000) {
+      _saveMatchDataSilently();
+      return;
+    }
+    _lastSaveTime = now;
+    _saveMatchData();
+  }
+
+  Future<void> _saveMatchDataSilently() async {
+    try {
+      await _firestore.collection('matches').doc(widget.match.id).update({
+        'tennisMatchData': {
+          'team1Sets': team1Sets,
+          'team2Sets': team2Sets,
+          'currentSet': currentSet,
+          'team1Games': team1Games,
+          'team2Games': team2Games,
+          'isTiebreak': isTiebreak,
+          'team1TiebreakPoints': team1TiebreakPoints,
+          'team2TiebreakPoints': team2TiebreakPoints,
+          'setScores': setScores,
+          'server': server,
+          'gamesPerSet': _gamesPerSet,
+          'tiebreakPoints': _tiebreakPoints,
+          'setsToWinMatch': _setsToWinMatch,
         },
       });
     } catch (e) {
@@ -98,9 +152,9 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
           team2TiebreakPoints++;
         }
         
-        // Check tiebreak win (7 points, lead by 2)
-        if ((team1TiebreakPoints >= 7 && team1TiebreakPoints - team2TiebreakPoints >= 2) ||
-            (team2TiebreakPoints >= 7 && team2TiebreakPoints - team1TiebreakPoints >= 2)) {
+        // Check tiebreak win (configurable points, lead by 2)
+        if ((team1TiebreakPoints >= _tiebreakPoints && team1TiebreakPoints - team2TiebreakPoints >= 2) ||
+            (team2TiebreakPoints >= _tiebreakPoints && team2TiebreakPoints - team1TiebreakPoints >= 2)) {
           _endSet();
         }
       } else {
@@ -110,18 +164,18 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
           team2Games++;
         }
         
-        // Check for set win (6 games, lead by 2) or tiebreak (6-6)
-        if (team1Games >= 6 || team2Games >= 6) {
-          if (team1Games == 6 && team2Games == 6) {
+        // Check for set win (configurable games per set, lead by 2) or tiebreak
+        if (team1Games >= _gamesPerSet || team2Games >= _gamesPerSet) {
+          if (team1Games == _gamesPerSet && team2Games == _gamesPerSet) {
             isTiebreak = true;
-          } else if ((team1Games >= 6 && team1Games - team2Games >= 2) ||
-                     (team2Games >= 6 && team2Games - team1Games >= 2)) {
+          } else if ((team1Games >= _gamesPerSet && team1Games - team2Games >= 2) ||
+                     (team2Games >= _gamesPerSet && team2Games - team1Games >= 2)) {
             _endSet();
           }
         }
       }
     });
-    _saveMatchData();
+    _saveMatchDataWithDebounce();
   }
 
   void _endSet() {
@@ -152,8 +206,9 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
     team2TiebreakPoints = 0;
     currentSet++;
     
-    // Check for match win (best of 3 sets)
-    if (team1Sets >= 2 || team2Sets >= 2) {
+    // Check for match win (configurable sets to win)
+    final setsNeededToWin = (_setsToWinMatch / 2).ceil();
+    if (team1Sets >= setsNeededToWin || team2Sets >= setsNeededToWin) {
       _endMatch();
     }
   }
@@ -164,7 +219,34 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
     await _firestore.collection('matches').doc(widget.match.id).update({
       'status': 'completed',
       'winnerId': winnerId,
+      'score': {
+        widget.match.team1Id: team1Sets,
+        widget.match.team2Id: team2Sets,
+      },
     });
+
+    // Update standings
+    try {
+      MatchModel updatedMatch = MatchModel(
+        id: widget.match.id,
+        sportId: widget.match.sportId,
+        team1Id: widget.match.team1Id,
+        team2Id: widget.match.team2Id,
+        dateTime: widget.match.dateTime,
+        venue: widget.match.venue,
+        status: 'completed',
+        category: widget.match.category,
+        score: {
+          widget.match.team1Id: team1Sets,
+          widget.match.team2Id: team2Sets,
+        },
+        createdAt: widget.match.createdAt,
+        winnerId: winnerId,
+      );
+      await _standingsService.onMatchCompleted(updatedMatch);
+    } catch (e) {
+      print('Error updating standings: $e');
+    }
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(

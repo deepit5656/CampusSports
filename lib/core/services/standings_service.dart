@@ -5,18 +5,25 @@ import '../models/standing_model.dart';
 class StandingsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Update standings for a specific sport
-  Future<void> updateStandingsForSport(String sportId) async {
+  /// Update standings for a specific sport (for all categories)
+  Future<void> updateStandingsForSport(String sportId, {String? category}) async {
     try {
       // Get all completed matches for this sport
-      final matchesSnapshot = await _firestore
+      Query query = _firestore
           .collection('matches')
           .where('sportId', isEqualTo: sportId)
-          .where('status', isEqualTo: 'completed')
-          .get();
+          .where('status', isEqualTo: 'completed');
+      
+      // Filter by category if provided
+      if (category != null) {
+        query = query.where('category', isEqualTo: category);
+      }
+      
+      final matchesSnapshot = await query.get();
 
       if (matchesSnapshot.docs.isEmpty) {
-        print('No completed matches found for sport: $sportId');
+        print('No completed matches found for sport: $sportId' + 
+            (category != null ? ' in $category category' : ''));
         return;
       }
 
@@ -31,8 +38,11 @@ class StandingsService {
         teamsInMatches.add(match.team2Id);
       }
 
+      // Get category from first match (or default to 'Boys')
+      final matchCategory = category ?? matches.first.category ?? 'Boys';
+
       // Calculate standings for each team
-      final Map<String, Map<String, int>> teamStats = {};
+      final Map<String, Map<String, dynamic>> teamStats = {};
 
       for (var teamId in teamsInMatches) {
         teamStats[teamId] = {
@@ -126,6 +136,7 @@ class StandingsService {
           id: standingRef.id,
           sportId: sportId,
           teamId: teamId,
+          category: matchCategory,
           played: stats['played']!,
           won: stats['won']!,
           lost: stats['lost']!,
@@ -150,9 +161,13 @@ class StandingsService {
   /// Update standings when a match is completed
   Future<void> onMatchCompleted(MatchModel match) async {
     try {
-      await updateStandingsForSport(match.sportId);
+      // Update standings for the specific category of this match
+      final category = match.category ?? 'Boys';
+      await updateStandingsForSport(match.sportId, category: category);
+      print('Standings updated for match completion: ${match.id}');
     } catch (e) {
       print('Error updating standings after match completion: $e');
+      rethrow;
     }
   }
 }

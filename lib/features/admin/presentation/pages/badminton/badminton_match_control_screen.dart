@@ -5,6 +5,7 @@ import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
 import '../../../../../core/models/team_model.dart';
 import '../../../../../core/models/sport_model.dart';
+import '../../../../../core/services/standings_service.dart';
 
 class BadmintonMatchControlScreen extends StatefulWidget {
   final MatchModel match;
@@ -17,10 +18,15 @@ class BadmintonMatchControlScreen extends StatefulWidget {
 
 class _BadmintonMatchControlScreenState extends State<BadmintonMatchControlScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final StandingsService _standingsService = StandingsService();
   
   TeamModel? _team1;
   TeamModel? _team2;
   SportModel? _sport;
+  
+  // Match configuration
+  int _pointsToWinSet = 21;  // Configurable
+  int _setsToWinMatch = 2;   // Best of 3 by default
   
   // Match state
   int _currentSet = 1;
@@ -33,6 +39,7 @@ class _BadmintonMatchControlScreenState extends State<BadmintonMatchControlScree
   int _setsWonTeam2 = 0;
   String? _servingTeam;
   List<Map<String, dynamic>> _pointHistory = [];
+  DateTime? _lastSaveTime;  // Prevent repeated save messages
   
   bool _isLoading = true;
 
@@ -70,6 +77,8 @@ class _BadmintonMatchControlScreenState extends State<BadmintonMatchControlScree
               _servingTeam = badmintonData['servingTeam'];
               _setsWonTeam1 = badmintonData['setsWonTeam1'] ?? 0;
               _setsWonTeam2 = badmintonData['setsWonTeam2'] ?? 0;
+              _pointsToWinSet = badmintonData['pointsToWinSet'] ?? 21;
+              _setsToWinMatch = badmintonData['setsToWinMatch'] ?? 2;
               
               // Load set scores
               if (badmintonData['setScores'] != null) {
@@ -108,14 +117,17 @@ class _BadmintonMatchControlScreenState extends State<BadmintonMatchControlScree
         'setsWonTeam2': _setsWonTeam2,
         'servingTeam': _servingTeam,
         'pointHistory': _pointHistory,
+        'pointsToWinSet': _pointsToWinSet,
+        'setsToWinMatch': _setsToWinMatch,
         'lastUpdated': FieldValue.serverTimestamp(),
       };
 
       // Calculate winner if match is complete
       String? winnerId;
-      if (_setsWonTeam1 >= 2) {
+      final setsNeededToWin = (_setsToWinMatch / 2).ceil();
+      if (_setsWonTeam1 >= setsNeededToWin) {
         winnerId = widget.match.team1Id;
-      } else if (_setsWonTeam2 >= 2) {
+      } else if (_setsWonTeam2 >= setsNeededToWin) {
         winnerId = widget.match.team2Id;
       }
 
@@ -124,6 +136,31 @@ class _BadmintonMatchControlScreenState extends State<BadmintonMatchControlScree
         'winnerId': winnerId,
         'status': winnerId != null ? 'completed' : widget.match.status,
       });
+
+      // Update standings if match is completed
+      if (winnerId != null) {
+        try {
+          MatchModel updatedMatch = MatchModel(
+            id: widget.match.id,
+            sportId: widget.match.sportId,
+            team1Id: widget.match.team1Id,
+            team2Id: widget.match.team2Id,
+            dateTime: widget.match.dateTime,
+            venue: widget.match.venue,
+            category: widget.match.category,
+            status: 'completed',
+            score: {
+              widget.match.team1Id: _setsWonTeam1,
+              widget.match.team2Id: _setsWonTeam2,
+            },
+            createdAt: widget.match.createdAt,
+            winnerId: winnerId,
+          );
+          await _standingsService.onMatchCompleted(updatedMatch);
+        } catch (e) {
+          print('Error updating standings: $e');
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -155,29 +192,65 @@ class _BadmintonMatchControlScreenState extends State<BadmintonMatchControlScree
       // Update serving team
       _servingTeam = teamId;
       
-      // Check if set is won (21 points with 2 point lead, or 30 points)
+      // Check if set is won (configurable points with 2 point lead, or max 30)
       final team1Score = _setScores[_currentSet]!['team1']!;
       final team2Score = _setScores[_currentSet]!['team2']!;
       
-      if ((team1Score >= 21 && team1Score - team2Score >= 2) || team1Score == 30) {
+      if ((team1Score >= _pointsToWinSet && team1Score - team2Score >= 2) || team1Score == 30) {
         _setsWonTeam1++;
         _checkSetComplete();
-      } else if ((team2Score >= 21 && team2Score - team1Score >= 2) || team2Score == 30) {
+      } else if ((team2Score >= _pointsToWinSet && team2Score - team1Score >= 2) || team2Score == 30) {
         _setsWonTeam2++;
         _checkSetComplete();
       }
     });
     
+    _saveMatchDataWithDebounce();
+  }
+
+  void _saveMatchDataWithDebounce() {
+    // Prevent repeated save messages within 2 seconds
+    final now = DateTime.now();
+    if (_lastSaveTime != null && now.difference(_lastSaveTime!).inMilliseconds < 2000) {
+      // Just save without showing message
+      _saveMatchDataSilently();
+      return;
+    }
+    
+    _lastSaveTime = now;
     _saveMatchData();
+  }
+  
+  void _saveMatchDataSilently() async {
+    try {
+      await _firestore.collection('matches').doc(widget.match.id).update({
+        'badmintonMatchData': {
+          'currentSet': _currentSet,
+          'servingTeam': _servingTeam,
+          'setsWonTeam1': _setsWonTeam1,
+          'setsWonTeam2': _setsWonTeam2,
+          'pointsToWinSet': _pointsToWinSet,
+          'setsToWinMatch': _setsToWinMatch,
+          'setScores': _setScores.map((k, v) => MapEntry(k.toString(), v)),
+          'pointHistory': _pointHistory,
+          'lastUpdated': FieldValue.serverTimestamp(),
+        },
+      });
+    } catch (e) {
+      print('Error saving match: $e');
+    }
   }
 
   void _checkSetComplete() {
-    if (_setsWonTeam1 >= 2 || _setsWonTeam2 >= 2) {
+    if (_setsWonTeam1 > _setsToWinMatch / 2 || _setsWonTeam2 > _setsToWinMatch / 2) {
       // Match complete
       _showMatchCompleteDialog();
-    } else if (_currentSet < 3) {
+    } else if (_currentSet < (_setsToWinMatch * 2 - 1)) {
       // Move to next set
       _showSetCompleteDialog();
+    } else {
+      // All sets completed
+      _showMatchCompleteDialog();
     }
   }
 
