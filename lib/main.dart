@@ -18,18 +18,33 @@ import 'features/splash/presentation/pages/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // Initialize Firebase with timeout and error handling
+  try {
+    debugPrint('Initializing Firebase...');
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 3));
+    debugPrint('Firebase initialized successfully');
+  } catch (e) {
+    debugPrint('Firebase initialization failed/timed out: $e');
+  }
   
-  // Initialize default sports (Cricket, Football, etc.)
-  await DefaultSportsService.initializeDefaultSports();
+  // Initialize default sports with timeout
+  try {
+    await DefaultSportsService.initializeDefaultSports()
+        .timeout(const Duration(seconds: 2));
+  } catch (e) {
+    debugPrint('Default sports initialization skipped/failed: $e');
+  }
   
-  // Initialize enhanced sport configurations
-  final sportConfigRepo = SportConfigRepository();
-  final appInitService = AppInitializationService(sportConfigRepo);
-  await appInitService.initializeApp();
+  // Initialize enhanced sport configurations with timeout
+  try {
+    final sportConfigRepo = SportConfigRepository();
+    final appInitService = AppInitializationService(sportConfigRepo);
+    await appInitService.initializeApp().timeout(const Duration(seconds: 2));
+  } catch (e) {
+    debugPrint('App initialization skipped/failed: $e');
+  }
   
   // Set preferred orientations
   await SystemChrome.setPreferredOrientations([
