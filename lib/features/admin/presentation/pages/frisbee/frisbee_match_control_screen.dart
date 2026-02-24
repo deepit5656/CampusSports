@@ -20,6 +20,10 @@ class _FrisbeeMatchControlScreenState extends State<FrisbeeMatchControlScreen> {
   String? possession; // 'team1' or 'team2'
   int turnovers = 0;
   
+  // Configurable frisbee settings
+  int _pointsToWinMatch = 15;  // Default: first to 15 points
+  DateTime? _lastSaveTime;  // For debouncing save messages
+  
   @override
   void initState() {
     super.initState();
@@ -39,6 +43,7 @@ class _FrisbeeMatchControlScreenState extends State<FrisbeeMatchControlScreen> {
             team2Score = frisbeeData['team2Score'] ?? 0;
             possession = frisbeeData['possession'];
             turnovers = frisbeeData['turnovers'] ?? 0;
+            _pointsToWinMatch = frisbeeData['pointsToWinMatch'] ?? 15;
           });
         }
       }
@@ -55,10 +60,41 @@ class _FrisbeeMatchControlScreenState extends State<FrisbeeMatchControlScreen> {
           'team2Score': team2Score,
           'possession': possession,
           'turnovers': turnovers,
+          'pointsToWinMatch': _pointsToWinMatch,
         },
         'score': {
           widget.match.team1Id: team1Score,
           widget.match.team2Id: team2Score,
+        },
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Match data saved'), duration: Duration(milliseconds: 800)),
+      );
+    } catch (e) {
+      print('Error saving match data: $e');
+    }
+  }
+
+  void _saveMatchDataWithDebounce() {
+    final now = DateTime.now();
+    if (_lastSaveTime != null && 
+        now.difference(_lastSaveTime!).inMilliseconds < 2000) {
+      _saveMatchDataSilently();
+      return;
+    }
+    _lastSaveTime = now;
+    _saveMatchData();
+  }
+
+  Future<void> _saveMatchDataSilently() async {
+    try {
+      await _firestore.collection('matches').doc(widget.match.id).update({
+        'frisbeeMatchData': {
+          'team1Score': team1Score,
+          'team2Score': team2Score,
+          'possession': possession,
+          'turnovers': turnovers,
+          'pointsToWinMatch': _pointsToWinMatch,
         },
       });
     } catch (e) {
@@ -76,12 +112,12 @@ class _FrisbeeMatchControlScreenState extends State<FrisbeeMatchControlScreen> {
         possession = 'team1';
       }
       
-      // Check if match is won (first to 15)
-      if (team1Score >= 15 || team2Score >= 15) {
+      // Check if match is won (first to configurable points)
+      if (team1Score >= _pointsToWinMatch || team2Score >= _pointsToWinMatch) {
         _endMatch();
       }
     });
-    _saveMatchData();
+    _saveMatchDataWithDebounce();
   }
 
   void _turnover() {
@@ -90,7 +126,7 @@ class _FrisbeeMatchControlScreenState extends State<FrisbeeMatchControlScreen> {
       // Switch possession
       possession = possession == 'team1' ? 'team2' : 'team1';
     });
-    _saveMatchData();
+    _saveMatchDataWithDebounce();
   }
 
   void _endMatch() async {

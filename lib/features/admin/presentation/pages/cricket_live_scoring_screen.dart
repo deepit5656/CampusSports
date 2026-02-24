@@ -769,7 +769,7 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundDark,
       appBar: AppBar(
-        title: const Text('Live Scoring'),
+        title: const Text('Cricket - Live Scoring'),
         backgroundColor: Colors.green.shade700,
         elevation: 0,
         actions: [
@@ -789,20 +789,44 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildScoreHeader(),
-                  const SizedBox(height: 16),
-                  _buildBattingScorecard(),
-                  _buildCurrentOver(),
-                  _buildScoringOptions(),
-                  _buildRunButtons(),
-                  const SizedBox(height: 16),
-                ],
-              ),
-            ),
+          : _inning == null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Failed to load match data',
+                        style: TextStyle(fontSize: 18, color: Colors.white),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Please go back and try again',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Go Back'),
+                      ),
+                    ],
+                  ),
+                )
+              : SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildScoreHeader(),
+                      const SizedBox(height: 16),
+                      _buildBattingScorecard(),
+                      _buildCurrentOver(),
+                      _buildScoringOptions(),
+                      _buildRunButtons(),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
+                ),
     );
   }
 }

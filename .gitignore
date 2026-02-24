@@ -1,98 +1,13 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.buildlog/
-.history
-.svn/
-migrate_working_dir/
+################################################################################
+# CampusSports Flutter Project .gitignore
+# Only Essential Source Code & Configuration - All Others Ignored
+# SECURITY: Private data, secrets, and build artifacts NEVER committed
+################################################################################
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# VSCode
-.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.packages
-.pub-cache/
-.pub/
-build/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android related
-/android/app/debug
-/android/app/profile
-/android/app/release
-/android/.gradle
-/android/captures/
-/android/gradlew
-/android/gradlew.bat
-/android/local.properties
-/android/**/GeneratedPluginRegistrant.java
-/android/key.properties
-/android/**/gradle-wrapper.jar
-*.jks
-*.keystore
-
-# Firebase - NEVER commit these files (they contain secrets!)
-google-services.json
-GoogleService-Info.plist
-firebase_options.dart
-.firebase/
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# iOS
-**/ios/**/*.mode1v3
-**/ios/**/*.mode2v3
-**/ios/**/*.moved-aside
-**/ios/**/*.pbxuser
-**/ios/**/*.perspectivev3
-**/ios/**/*sync/
-**/ios/**/.sconsign.dblite
-**/ios/**/.tags*
-**/ios/**/.vagrant/
-**/ios/**/DerivedData/
-**/ios/**/Icon?
-**/ios/**/Pods/
-**/ios/**/.symlinks/
-**/ios/**/profile
-**/ios/**/xcuserdata
-**/ios/.generated/
-**/ios/Flutter/.last_build_id
-**/ios/Flutter/App.framework
-**/ios/Flutter/Flutter.framework
-**/ios/Flutter/Flutter.podspec
-**/ios/Flutter/Generated.xcconfig
-**/ios/Flutter/ephemeral
-**/ios/Flutter/app.flx
-**/ios/Flutter/app.zip
-**/ios/Flutter/flutter_assets/
-**/ios/Flutter/flutter_export_environment.sh
-**/ios/ServiceDefinitions.json
-**/ios/Runner/GeneratedPluginRegistrant.*
-
-# Documentation files (excluding main README.md)
+# ==================== DOCUMENTATION (NOT COMMITTED) ====================
+# Keep repository clean - documentation can be generated from code
+*.md
+!README.md
 COMMANDS.md
 FEATURES.md
 FIREBASE_SETUP.md
@@ -102,15 +17,173 @@ GET_STARTED.md
 PROJECT_SUMMARY.md
 PUBLIC_ACCESS_UPDATE.md
 QUICKSTART.md
-QUICK_START_GUIDE.md
 SAMPLE_DATA.md
+SETUP_FOR_NEW_DEVELOPERS.md
 TROUBLESHOOTING.md
 IMPLEMENTATION_SUMMARY.md
+SPORTS_CONFIGURATION_GUIDE.md
+STANDINGS_AND_GIT_SETUP.md
 SECURITY_FIX_INSTRUCTIONS.md
+QUICK_START_GUIDE.md
 
-# Exceptions
-!**/ios/**/default.mode1v3
-!**/ios/**/default.mode2v3
-!**/ios/**/default.pbxuser
-!**/ios/**/default.perspectivev3
-!/packages/flutter_tools/test/data/dart_dependencies_test/**/.packages
+# ==================== SYSTEM & EDITOR FILES ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+.atom/
+.idea_modules/
+
+# ==================== IDE & EDITOR CONFIGURATION ====================
+# Keep IDE settings out - each developer uses their own
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# ==================== FLUTTER & DART ====================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+
+# Compilation & Build
+build/
+dist/
+coverage/
+
+# Web support
+web/packages_test/
+web/packages/
+
+# Documentation
+.dart_tool/doc/
+
+# Obfuscation related
+app.*.map.json
+app.*.symbols
+
+# ==================== ANDROID ====================
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/local.properties
+android/app/*.jks
+android/app/*.keystore
+android/app/*.pem
+
+android/.gradle/
+android/build/
+android/captures/
+android/local.properties
+android/**/GeneratedPluginRegistrant.java
+android/**/gradle-wrapper.jar
+android/gradlew
+android/gradlew.bat
+*.keystore
+
+# ==================== iOS ====================
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Flutter.xcframework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/.last_build_id
+ios/Flutter/ephemeral
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/flutter_assets
+ios/Flutter/flutter_export_environment.sh
+
+ios/Pods/
+ios/Runner/GeneratedPluginRegistrant.*
+ios/Podfile.lock
+
+ios/.symlinks/
+ios/*.mode1v3
+ios/*.mode2v3
+ios/*.moved-aside
+ios/*.pbxuser
+ios/*.perspectivev3
+ios/*.xcworkspace
+ios/.gradle
+ios/.idea
+ios/DerivedData/
+ios/Icon?
+ios/Pods/
+ios/Podfile.lock
+ios/xcuserdata/
+ios/.generated/
+ios/ServiceDefinitions.json
+
+# ==================== WEB ====================
+web/packages/
+
+# ==================== 🔒 SECRETS & SENSITIVE FILES (CRITICAL!) ====================
+# NEVER commit these - they contain API keys, credentials, and secrets!
+lib/firebase_options.dart
+lib/firebase_options.dart.template
+google-services.json
+GoogleService-Info.plist
+.firebase/
+.firebaserc
+
+# 🔒 Environment Variables & API Keys
+.env
+.env.local
+.env.*.local
+.env*.gz
+.env.*.example
+.env.production
+.env.development
+.env.staging
+
+# 🔒 Private Configuration
+.private.dart
+.keys/
+secrets/
+credentials.json
+api-keys.json
+
+# ==================== BUILD & DEPENDENCY OUTPUT ====================
+.dart_tool/
+.packages
+pubspec.lock
+package-lock.json
+node_modules/
+.pub-cache/
+.pub/
+
+# ==================== IDE BUILD OUTPUT ====================
+.dart_tool/
+.packages
+pubspec.lock
+
+# ==================== EXCEPTIONS (whitelist specific files) ====================
+# These files ARE committed despite matching patterns above
+!.gitkeep
+!.gitattributes
+!README.md
+!pubspec.yaml
+!analysis_options.yaml
+!android/build.gradle.kts
+!android/app/build.gradle.kts
+!android/gradle/wrapper/gradle-wrapper.properties
+!ios/Podfile
+!/packages/

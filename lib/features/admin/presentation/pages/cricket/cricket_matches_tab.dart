@@ -263,7 +263,7 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
             children: [
               Expanded(
                 child: _buildRadioOption(
-                  label: 'Host',
+                  label: _hostTeam?.name ?? 'Team 1',
                   value: 'host',
                   groupValue: _tossWonBy,
                   onChanged: (val) => setState(() => _tossWonBy = val!),
@@ -272,7 +272,7 @@ class _CricketMatchesTabState extends State<CricketMatchesTab> {
               const SizedBox(width: 12),
               Expanded(
                 child: _buildRadioOption(
-                  label: 'Visitor',
+                  label: _visitorTeam?.name ?? 'Team 2',
                   value: 'visitor',
                   groupValue: _tossWonBy,
                   onChanged: (val) => setState(() => _tossWonBy = val!),

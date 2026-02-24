@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/team_model.dart';
+import '../../../../core/models/default_sport_configurations_comprehensive.dart';
 import '../../../../core/utils/validators.dart';
 import 'cricket/cricket_match_control_screen.dart';
 import 'football/football_match_control_screen.dart';
@@ -38,6 +39,8 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
     _tabController?.dispose();
     super.dispose();
   }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -81,7 +84,6 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
                         ],
                       ),
                     ),
-
                     // Sport Tabs
                     StreamBuilder<QuerySnapshot>(
                       stream: _firestore.collection('sports').snapshots(),
@@ -92,6 +94,7 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
 
                         _sports = snapshot.data!.docs
                             .map((doc) => SportModel.fromSnapshot(doc))
+                            .where((sport) => sport.name.isNotEmpty) // Filter out blank sports
                             .toList();
                         
                         // Sort sports alphabetically to ensure consistent display
@@ -371,14 +374,6 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  team1Complete ? Icons.check_circle : Icons.warning,
-                                  size: 16,
-                                  color: team1Complete 
-                                    ? AppTheme.successColor 
-                                    : AppTheme.accentGradientStart,
-                                ),
                               ],
                             ),
                           ),
@@ -430,14 +425,6 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
                                         : Colors.white,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 4),
-                                Icon(
-                                  team2Complete ? Icons.check_circle : Icons.warning,
-                                  size: 16,
-                                  color: team2Complete 
-                                    ? AppTheme.successColor 
-                                    : AppTheme.accentGradientStart,
                                 ),
                               ],
                             ),
@@ -686,36 +673,29 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
     List<TeamModel> getEligibleTeams(String? sportId) {
       if (sportId == null) return [];
       
-      // Get sport's required number of players
       try {
-        final sportDoc = sports.docs.firstWhere(
-          (doc) => doc.id == sportId,
-          orElse: () => throw Exception('Sport not found'),
-        );
-        
-        final sportData = sportDoc.data() as Map<String, dynamic>?;
-        if (sportData == null) {
-          return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
-        }
-        
-        final requiredPlayers = sportData['numberOfPlayers'] as int?;
-        
-        if (requiredPlayers == null || requiredPlayers == 0) {
-          return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
-        }
-        
-        // Filter teams that have complete rosters for this sport
-        return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).where((team) {
-          final teamPlayerCount = players.docs.where((playerDoc) {
-            final playerData = playerDoc.data() as Map<String, dynamic>?;
-            if (playerData == null) return false;
-            return playerData['teamId'] == team.id && playerData['sportId'] == sportId;
-          }).length;
-          return teamPlayerCount >= requiredPlayers;
+        // Simply return all teams that have players
+        // Don't filter by numberOfPlayers if it's not set or problematic
+        final teamsWithPlayers = allTeams.docs
+            .map((doc) => TeamModel.fromSnapshot(doc))
+            .where((team) {
+          // Check if team has at least some players
+          final teamPlayerCount = players.docs
+              .where((playerDoc) {
+                final playerData = playerDoc.data() as Map<String, dynamic>?;
+                return playerData != null && playerData['teamId'] == team.id;
+              })
+              .length;
+          return teamPlayerCount > 0; // At least 1 player required
         }).toList();
+        
+        return teamsWithPlayers.isNotEmpty 
+            ? teamsWithPlayers 
+            : allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
       } catch (e) {
         print('Error getting eligible teams: $e');
-        return [];
+        // Fallback: return all teams
+        return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
       }
     }
 
@@ -748,8 +728,10 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
                       labelText: 'Sport',
                       prefixIcon: Icon(Icons.sports),
                     ),
-                    items: sports.docs.map((doc) {
-                      final sport = SportModel.fromSnapshot(doc);
+                    items: sports.docs
+                        .map((doc) => SportModel.fromSnapshot(doc))
+                        .where((sport) => sport.name.isNotEmpty) // Filter out blank sports
+                        .map((sport) {
                       return DropdownMenuItem(
                         value: sport.id,
                         child: Text(sport.name),

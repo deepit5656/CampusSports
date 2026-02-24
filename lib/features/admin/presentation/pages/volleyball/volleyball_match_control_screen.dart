@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
+import '../../../../../core/services/standings_service.dart';
 
 class VolleyballMatchControlScreen extends StatefulWidget {
   final MatchModel match;
@@ -15,6 +16,7 @@ class VolleyballMatchControlScreen extends StatefulWidget {
 
 class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final StandingsService _standingsService = StandingsService();
   
   bool _isLoading = true;
   String? _team1Name;
@@ -28,6 +30,12 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
   // Volleyball specific
   String _servingTeam = 'team1';
   Map<String, int> _timeouts = {'team1': 2, 'team2': 2}; // 2 timeouts per set
+  
+  // Configurable volleyball settings
+  int _pointsPerSet = 25;  // Default: 25 points per set
+  int _pointsForFinalSet = 15;  // Default: 15 points for final/5th set
+  int _setsToWinMatch = 3;  // Default: best of 5 (first to 3)
+  DateTime? _lastSaveTime;  // For debouncing save messages
 
   @override
   void initState() {
@@ -52,6 +60,12 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
         final matchData = data['volleyballMatchData'] as Map<String, dynamic>;
         _currentSet = matchData['currentSet'] ?? 1;
         _servingTeam = matchData['servingTeam'] ?? 'team1';
+        
+        // Load configurable settings
+        _pointsPerSet = matchData['pointsPerSet'] ?? 25;
+        _pointsForFinalSet = matchData['pointsForFinalSet'] ?? 15;
+        _setsToWinMatch = matchData['setsToWinMatch'] ?? 3;
+        _totalSets = matchData['totalSets'] ?? 5;
         
         if (matchData['setScores'] != null) {
           final setScoresData = matchData['setScores'] as Map<String, dynamic>;
@@ -85,8 +99,8 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
       int team2SetsWon = 0;
       
       _setScores.forEach((set, scores) {
-        // Volleyball: need 25 points and 2 point lead (or 15 for set 5)
-        final pointsNeeded = set == 5 ? 15 : 25;
+        // Volleyball: use configurable points (25 for standard, 15 for final)
+        final pointsNeeded = set == _totalSets ? _pointsForFinalSet : _pointsPerSet;
         if (scores['team1']! >= pointsNeeded && scores['team1']! - scores['team2']! >= 2) {
           team1SetsWon++;
         } else if (scores['team2']! >= pointsNeeded && scores['team2']! - scores['team1']! >= 2) {
@@ -94,10 +108,9 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
         }
       });
 
-      final setsToWin = 3; // Best of 5
       String? winnerId;
-      if (team1SetsWon >= setsToWin) winnerId = widget.match.team1Id;
-      if (team2SetsWon >= setsToWin) winnerId = widget.match.team2Id;
+      if (team1SetsWon >= _setsToWinMatch) winnerId = widget.match.team1Id;
+      if (team2SetsWon >= _setsToWinMatch) winnerId = widget.match.team2Id;
 
       await _firestore.collection('matches').doc(widget.match.id).update({
         'volleyballMatchData': {
@@ -109,6 +122,9 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
           'timeouts': _timeouts,
           'team1SetsWon': team1SetsWon,
           'team2SetsWon': team2SetsWon,
+          'pointsPerSet': _pointsPerSet,
+          'pointsForFinalSet': _pointsForFinalSet,
+          'setsToWinMatch': _setsToWinMatch,
         },
         'score': {
           widget.match.team1Id: team1SetsWon,
@@ -117,8 +133,82 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
         'winnerId': winnerId,
         'status': winnerId != null ? 'completed' : widget.match.status,
       });
+
+      // Update standings if match is completed
+      if (winnerId != null) {
+        try {
+          MatchModel updatedMatch = MatchModel(
+            id: widget.match.id,
+            sportId: widget.match.sportId,
+            team1Id: widget.match.team1Id,
+            team2Id: widget.match.team2Id,
+            dateTime: widget.match.dateTime,
+            venue: widget.match.venue,
+            status: 'completed',
+            category: widget.match.category,
+            score: {
+              widget.match.team1Id: team1SetsWon,
+              widget.match.team2Id: team2SetsWon,
+            },
+            createdAt: widget.match.createdAt,
+            winnerId: winnerId,
+          );
+          await _standingsService.onMatchCompleted(updatedMatch);
+        } catch (e) {
+          print('Error updating standings: $e');
+        }
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Match data saved'), duration: Duration(milliseconds: 800)),
+      );
     } catch (e) {
-      // Handle error
+      print('Error saving: $e');
+    }
+  }
+
+  void _saveMatchDataWithDebounce() {
+    final now = DateTime.now();
+    if (_lastSaveTime != null && 
+        now.difference(_lastSaveTime!).inMilliseconds < 2000) {
+      _saveMatchDataSilently();
+      return;
+    }
+    _lastSaveTime = now;
+    _saveMatchData();
+  }
+
+  Future<void> _saveMatchDataSilently() async {
+    try {
+      int team1SetsWon = 0;
+      int team2SetsWon = 0;
+      
+      _setScores.forEach((set, scores) {
+        final pointsNeeded = set == _totalSets ? _pointsForFinalSet : _pointsPerSet;
+        if (scores['team1']! >= pointsNeeded && scores['team1']! - scores['team2']! >= 2) {
+          team1SetsWon++;
+        } else if (scores['team2']! >= pointsNeeded && scores['team2']! - scores['team1']! >= 2) {
+          team2SetsWon++;
+        }
+      });
+
+      await _firestore.collection('matches').doc(widget.match.id).update({
+        'volleyballMatchData': {
+          'currentSet': _currentSet,
+          'totalSets': _totalSets,
+          'setScores': _setScores.map((key, value) => MapEntry(key.toString(), value)),
+          'events': _events,
+          'servingTeam': _servingTeam,
+          'timeouts': _timeouts,
+          'team1SetsWon': team1SetsWon,
+          'team2SetsWon': team2SetsWon,
+          'pointsPerSet': _pointsPerSet,
+          'pointsForFinalSet': _pointsForFinalSet,
+          'setsToWinMatch': _setsToWinMatch,
+        },
+      });
+    } catch (e) {
+      print('Error saving: $e');
     }
   }
 
@@ -135,7 +225,7 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
       
       final team1Score = _setScores[_currentSet]!['team1']!;
       final team2Score = _setScores[_currentSet]!['team2']!;
-      final pointsNeeded = _currentSet == 5 ? 15 : 25;
+      final pointsNeeded = _currentSet == _totalSets ? _pointsForFinalSet : _pointsPerSet;
       
       if ((team1Score >= pointsNeeded && team1Score - team2Score >= 2) ||
           (team2Score >= pointsNeeded && team2Score - team1Score >= 2)) {
@@ -146,7 +236,7 @@ class _VolleyballMatchControlScreenState extends State<VolleyballMatchControlScr
         _timeouts = {'team1': 2, 'team2': 2};
       }
     });
-    _saveMatchData();
+    _saveMatchDataWithDebounce();
   }
 
   void _callTimeout(String team) {
