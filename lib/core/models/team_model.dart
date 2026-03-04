@@ -7,6 +7,7 @@ class TeamModel extends Equatable {
   final String department;
   final String logo;
   final String? sportId; // Sport this team belongs to
+  final String? instituteId; // Institute this team belongs to
   final int? numberOfPlayers; // Number of players in this team for the sport
   final DateTime createdAt;
   final Map<String, dynamic>? additionalInfo; // Any additional team information
@@ -17,6 +18,7 @@ class TeamModel extends Equatable {
     required this.department,
     required this.logo,
     this.sportId,
+    this.instituteId,
     this.numberOfPlayers,
     required this.createdAt,
     this.additionalInfo,
@@ -29,6 +31,7 @@ class TeamModel extends Equatable {
       'department': department,
       'logo': logo,
       'sportId': sportId,
+      'instituteId': instituteId,
       'numberOfPlayers': numberOfPlayers,
       'createdAt': Timestamp.fromDate(createdAt),
       'additionalInfo': additionalInfo,
@@ -42,6 +45,7 @@ class TeamModel extends Equatable {
       department: map['department'] ?? '',
       logo: map['logo'] ?? '',
       sportId: map['sportId'],
+      instituteId: map['instituteId'],
       numberOfPlayers: map['numberOfPlayers'] as int?,
       createdAt: (map['createdAt'] as Timestamp).toDate(),
       additionalInfo: map['additionalInfo'] as Map<String, dynamic>?,
@@ -50,6 +54,7 @@ class TeamModel extends Equatable {
 
   factory TeamModel.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    data['id'] = doc.id;
     return TeamModel.fromMap(data);
   }
 
@@ -59,6 +64,7 @@ class TeamModel extends Equatable {
     String? department,
     String? logo,
     String? sportId,
+    String? instituteId,
     int? numberOfPlayers,
     DateTime? createdAt,
     Map<String, dynamic>? additionalInfo,
@@ -69,6 +75,7 @@ class TeamModel extends Equatable {
       department: department ?? this.department,
       logo: logo ?? this.logo,
       sportId: sportId ?? this.sportId,
+      instituteId: instituteId ?? this.instituteId,
       numberOfPlayers: numberOfPlayers ?? this.numberOfPlayers,
       createdAt: createdAt ?? this.createdAt,
       additionalInfo: additionalInfo ?? this.additionalInfo,
@@ -76,5 +83,5 @@ class TeamModel extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, name, department, logo, sportId, numberOfPlayers, createdAt, additionalInfo];
+  List<Object?> get props => [id, name, department, logo, sportId, instituteId, numberOfPlayers, createdAt, additionalInfo];
 }

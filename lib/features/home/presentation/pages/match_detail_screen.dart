@@ -12,6 +12,7 @@ import '../../../admin/presentation/pages/cricket_match_setup_screen.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../widgets/quick_score_update.dart';
+import '../widgets/sport_scoreboards.dart';
 
 class MatchDetailScreen extends StatefulWidget {
   final MatchModel match;
@@ -41,7 +42,7 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
           .get();
       if (doc.exists && mounted) {
         setState(() {
-          _sport = SportModel.fromMap(doc.data()!);
+          _sport = SportModel.fromSnapshot(doc);
         });
       }
     } catch (e) {
@@ -458,6 +459,36 @@ class _MatchDetailScreenState extends State<MatchDetailScreen> {
                         );
                       }
                       return const SizedBox();
+                    },
+                  ),
+
+                // Sport-Specific Scoreboard
+                if (_sport != null &&
+                    matchSnapshot.hasData &&
+                    matchSnapshot.data!.exists)
+                  FutureBuilder<List<TeamModel?>>(
+                    future: Future.wait([
+                      _getTeam(currentMatch.team1Id),
+                      _getTeam(currentMatch.team2Id),
+                    ]),
+                    builder: (context, teamSnap) {
+                      if (!teamSnap.hasData ||
+                          teamSnap.data![0] == null ||
+                          teamSnap.data![1] == null) {
+                        return const SizedBox.shrink();
+                      }
+                      final rawData = matchSnapshot.data!.data()
+                          as Map<String, dynamic>? ??
+                          {};
+                      return SportScoreboard(
+                        sportName: _sport!.name,
+                        matchData: rawData,
+                        matchId: currentMatch.id,
+                        team1Id: currentMatch.team1Id,
+                        team2Id: currentMatch.team2Id,
+                        team1Name: teamSnap.data![0]!.name,
+                        team2Name: teamSnap.data![1]!.name,
+                      );
                     },
                   ),
 

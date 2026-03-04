@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
 import '../../../../../core/models/team_model.dart';
+import '../../../../../core/services/standings_service.dart';
 
 class FootballMatchControlScreen extends StatefulWidget {
   final String matchId;
@@ -19,6 +20,7 @@ class FootballMatchControlScreen extends StatefulWidget {
 
 class _FootballMatchControlScreenState extends State<FootballMatchControlScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final StandingsService _standingsService = StandingsService();
   MatchModel? _match;
   TeamModel? _team1;
   TeamModel? _team2;
@@ -750,6 +752,31 @@ class _FootballMatchControlScreenState extends State<FootballMatchControlScreen>
           'events': _matchEvents,
         },
       });
+
+      // Update standings if match completed
+      if (_selectedStatus == 'completed' && _match != null) {
+        try {
+          MatchModel updatedMatch = MatchModel(
+            id: _match!.id,
+            sportId: _match!.sportId,
+            team1Id: _match!.team1Id,
+            team2Id: _match!.team2Id,
+            dateTime: _match!.dateTime,
+            venue: _match!.venue,
+            status: 'completed',
+            category: _match!.category,
+            score: {
+              _team1!.id: _team1Score,
+              _team2!.id: _team2Score,
+            },
+            createdAt: _match!.createdAt,
+            winnerId: winnerId,
+          );
+          await _standingsService.onMatchCompleted(updatedMatch);
+        } catch (e) {
+          print('Error updating standings: $e');
+        }
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

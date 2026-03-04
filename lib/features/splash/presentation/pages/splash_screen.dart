@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../home/presentation/pages/main_screen.dart';
+import '../../../auth/presentation/pages/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -14,11 +16,16 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Navigate to main screen after animation
+    // Navigate based on auth state after animation
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
+        final user = FirebaseAuth.instance.currentUser;
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainScreen()),
+          MaterialPageRoute(
+            builder: (_) => user != null
+                ? const MainScreen()
+                : const LoginScreen(),
+          ),
         );
       }
     });

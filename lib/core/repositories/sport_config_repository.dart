@@ -4,7 +4,7 @@ import '../models/default_sport_configurations_comprehensive.dart';
 
 class SportConfigRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  static const String _collection = 'sport_configs';
+  static const String _collection = 'sports';
 
   /// Initialize default sports in Firestore (call once on first run)
   Future<void> initializeDefaultSports() async {

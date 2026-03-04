@@ -44,7 +44,7 @@ class _UniversalLiveScoringScreenState
         title: Text('${widget.sportConfig.name} - Live Scoring'),
         backgroundColor: widget.sportConfig.primaryColor,
       ),
-      body: StreamBuilder<MatchState>(
+      body: StreamBuilder<MatchState?>(
         stream: _scoringService.getMatchState(widget.matchId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -55,8 +55,8 @@ class _UniversalLiveScoringScreenState
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          if (!snapshot.hasData) {
-            return const Center(child: Text('No match data'));
+          if (!snapshot.hasData || snapshot.data == null) {
+            return const Center(child: Text('Waiting for match data...'));
           }
 
           final matchState = snapshot.data!;
@@ -83,10 +83,10 @@ class _UniversalLiveScoringScreenState
         title: Text('${widget.sportConfig.name} - Live Scoring'),
         backgroundColor: widget.sportConfig.primaryColor,
       ),
-      body: StreamBuilder<MatchState>(
+      body: StreamBuilder<MatchState?>(
         stream: _scoringService.getMatchState(widget.matchId),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData || snapshot.data == null) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -126,10 +126,10 @@ class _UniversalLiveScoringScreenState
         title: Text('${widget.sportConfig.name} - Live Scoring'),
         backgroundColor: widget.sportConfig.primaryColor,
       ),
-      body: StreamBuilder<MatchState>(
+      body: StreamBuilder<MatchState?>(
         stream: _scoringService.getMatchState(widget.matchId),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (!snapshot.hasData || snapshot.data == null) {
             return const Center(child: CircularProgressIndicator());
           }
 

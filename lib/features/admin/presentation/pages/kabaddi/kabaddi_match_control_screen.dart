@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
+import '../../../../../core/services/standings_service.dart';
 
 class KabaddiMatchControlScreen extends StatefulWidget {
   final MatchModel match;
@@ -14,6 +15,10 @@ class KabaddiMatchControlScreen extends StatefulWidget {
 
 class _KabaddiMatchControlScreenState extends State<KabaddiMatchControlScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final StandingsService _standingsService = StandingsService();
+  
+  String _team1Name = 'Team 1';
+  String _team2Name = 'Team 2';
   
   int team1Score = 0;
   int team2Score = 0;
@@ -28,6 +33,12 @@ class _KabaddiMatchControlScreenState extends State<KabaddiMatchControlScreen> {
 
   void _loadMatchData() async {
     try {
+      // Load team names
+      final team1Doc = await _firestore.collection('teams').doc(widget.match.team1Id).get();
+      final team2Doc = await _firestore.collection('teams').doc(widget.match.team2Id).get();
+      if (team1Doc.exists) _team1Name = team1Doc.data()?['name'] ?? 'Team 1';
+      if (team2Doc.exists) _team2Name = team2Doc.data()?['name'] ?? 'Team 2';
+      
       final doc = await _firestore.collection('matches').doc(widget.match.id).get();
       if (doc.exists && mounted) {
         final data = doc.data();
@@ -140,7 +151,34 @@ class _KabaddiMatchControlScreenState extends State<KabaddiMatchControlScreen> {
     await _firestore.collection('matches').doc(widget.match.id).update({
       'status': 'completed',
       'winnerId': winnerId,
+      'score': {
+        widget.match.team1Id: team1Score,
+        widget.match.team2Id: team2Score,
+      },
     });
+
+    // Update standings
+    try {
+      MatchModel updatedMatch = MatchModel(
+        id: widget.match.id,
+        sportId: widget.match.sportId,
+        team1Id: widget.match.team1Id,
+        team2Id: widget.match.team2Id,
+        dateTime: widget.match.dateTime,
+        venue: widget.match.venue,
+        status: 'completed',
+        category: widget.match.category,
+        score: {
+          widget.match.team1Id: team1Score,
+          widget.match.team2Id: team2Score,
+        },
+        createdAt: widget.match.createdAt,
+        winnerId: winnerId,
+      );
+      await _standingsService.onMatchCompleted(updatedMatch);
+    } catch (e) {
+      print('Error updating standings: $e');
+    }
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -199,7 +237,7 @@ class _KabaddiMatchControlScreenState extends State<KabaddiMatchControlScreen> {
                     children: [
                       Column(
                         children: [
-                          const Text('Team 1', style: TextStyle(color: Colors.white70)),
+                          Text(_team1Name, style: TextStyle(color: Colors.white70)),
                           const SizedBox(height: 8),
                           Text(
                             team1Score.toString(),
@@ -214,7 +252,7 @@ class _KabaddiMatchControlScreenState extends State<KabaddiMatchControlScreen> {
                       const Text('VS', style: TextStyle(color: Colors.white, fontSize: 20)),
                       Column(
                         children: [
-                          const Text('Team 2', style: TextStyle(color: Colors.white70)),
+                          Text(_team2Name, style: TextStyle(color: Colors.white70)),
                           const SizedBox(height: 8),
                           Text(
                             team2Score.toString(),
@@ -244,8 +282,8 @@ class _KabaddiMatchControlScreenState extends State<KabaddiMatchControlScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Team 1',
+                  Text(
+                    _team1Name,
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
@@ -291,8 +329,8 @@ class _KabaddiMatchControlScreenState extends State<KabaddiMatchControlScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Team 2',
+                  Text(
+                    _team2Name,
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),

@@ -3,7 +3,6 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/sport_config_comprehensive.dart';
-import '../../../../core/models/default_sport_configurations_comprehensive.dart';
 import 'sport_configuration_screen.dart';
 import 'universal_sport_management_screen.dart';
 
@@ -16,64 +15,9 @@ class ManageSportsScreen extends StatefulWidget {
 
 class _ManageSportsScreenState extends State<ManageSportsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  bool _isInitializing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeDefaultSports();
-  }
-
-  Future<void> _initializeDefaultSports() async {
-    setState(() => _isInitializing = true);
-    
-    try {
-      final snapshot = await _firestore.collection('sport_configs').get();
-      if (snapshot.docs.isEmpty) {
-        // Initialize default sports
-        final defaultSports = DefaultSportConfigurations.getAllDefaultSports();
-        final batch = _firestore.batch();
-        
-        for (final sport in defaultSports) {
-          final docRef = _firestore.collection('sport_configs').doc(sport.id);
-          batch.set(docRef, sport.toMap());
-        }
-        
-        await batch.commit();
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error initializing sports: ${e.toString()}'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
-    } finally {
-      setState(() => _isInitializing = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    if (_isInitializing) {
-      return Scaffold(
-        body: Container(
-          decoration: const BoxDecoration(
-            gradient: AppTheme.backgroundGradient,
-          ),
-          child: const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Setting up sports...'),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       body: Container(
@@ -115,7 +59,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
               // Sports List
               Expanded(
                 child: StreamBuilder<QuerySnapshot>(
-                  stream: _firestore.collection('sport_configs').snapshots(),
+                  stream: _firestore.collection('sports').snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Center(child: Text('Error: ${snapshot.error}'));
@@ -509,7 +453,7 @@ class _ManageSportsScreenState extends State<ManageSportsScreen> {
           ElevatedButton(
             onPressed: () async {
               try {
-                await _firestore.collection('sport_configs').doc(sport.id).delete();
+                await _firestore.collection('sports').doc(sport.id).delete();
                 Navigator.pop(dialogContext);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

@@ -100,9 +100,13 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
   }
 
   Future<CricketPlayer?> _getPlayer(String playerId) async {
-    // You would implement this to fetch from your player cache or service
-    // For now, returning null
-    return null;
+    try {
+      final doc = await _cricketService.getPlayer(playerId);
+      return doc;
+    } catch (e) {
+      print('Error fetching player: $e');
+      return null;
+    }
   }
 
   void _resetScoringOptions() {
@@ -342,7 +346,7 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
             ],
           ),
         ),
-        ..._battingStats.take(3).map((stat) {
+        ..._battingStats.map((stat) {
           final isStriker = _striker?.id == stat.playerId;
           return Container(
             color: isStriker
@@ -389,7 +393,7 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
             ),
           );
         }).toList(),
-        if (_currentBowler != null) ...[
+        if (_currentBowler != null || _bowlingStats.isNotEmpty) ...[
           const SizedBox(height: 8),
           Container(
             color: AppTheme.surfaceDark.withOpacity(0.3),
@@ -415,22 +419,42 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
               ],
             ),
           ),
-          ..._bowlingStats
-              .where((s) => s.playerId == _currentBowler!.id)
-              .map((stat) {
+          ..._bowlingStats.map((stat) {
+            final isCurrent = _currentBowler?.id == stat.playerId;
             return Container(
+              color: isCurrent
+                  ? AppTheme.surfaceDark.withOpacity(0.5)
+                  : Colors.transparent,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Text(
-                      stat.playerName,
-                      style: const TextStyle(
-                        color: AppTheme.textColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            stat.playerName,
+                            style: TextStyle(
+                              color: AppTheme.textColor,
+                              fontWeight:
+                                  isCurrent ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (isCurrent)
+                          const Padding(
+                            padding: EdgeInsets.only(left: 4),
+                            child: Text(
+                              '*',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                   _buildStatValue(stat.displayOvers),

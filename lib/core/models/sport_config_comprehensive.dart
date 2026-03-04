@@ -216,6 +216,8 @@ class SportConfigModel extends Equatable {
       'quickActions': quickActions.map((e) => e.toMap()).toList(),
       'primaryColor': primaryColor.value,
       'createdAt': Timestamp.fromDate(createdAt),
+      // Bridge: include scoringConfig so SportModel.fromMap works on the same document
+      'scoringConfig': toScoringConfigMap(),
     };
   }
 
@@ -264,6 +266,66 @@ class SportConfigModel extends Equatable {
       primaryColor: Color(map['primaryColor'] ?? 0xFF2196F3),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
+  }
+
+  /// Bridge method: generate a ScoringConfig from this comprehensive config.
+  /// This allows SportModel.fromMap to read the same Firestore document.
+  Map<String, dynamic> toScoringConfigMap() {
+    // Build score fields from scoreActions + primary unit
+    final List<Map<String, dynamic>> fields = [];
+    
+    // Primary score field
+    fields.add({
+      'id': primaryScoreUnit.endsWith('s') ? primaryScoreUnit : '${primaryScoreUnit}s',
+      'name': primaryScoreUnit[0].toUpperCase() + primaryScoreUnit.substring(1) + (primaryScoreUnit.endsWith('s') ? '' : 's'),
+      'type': 'number',
+      'isPrimary': true,
+      'showInCard': true,
+      'minValue': 0,
+      'unit': primaryScoreUnit.endsWith('s') ? primaryScoreUnit : '${primaryScoreUnit}s',
+      'displayOrder': 0,
+    });
+    
+    // Add secondary fields from score actions (unique categories)
+    int order = 1;
+    final seenCategories = <String>{};
+    for (final action in scoreActions) {
+      if (action.category != 'score' && !seenCategories.contains(action.category)) {
+        seenCategories.add(action.category);
+        fields.add({
+          'id': action.category,
+          'name': action.category[0].toUpperCase() + action.category.substring(1),
+          'type': 'number',
+          'isPrimary': false,
+          'showInCard': false,
+          'minValue': 0,
+          'unit': action.category,
+          'displayOrder': order++,
+        });
+      }
+    }
+    
+    String winCond;
+    switch (winCondition) {
+      case WinCondition.highestScore:
+        winCond = 'highest';
+        break;
+      case WinCondition.mostSetsWon:
+        winCond = 'best_of';
+        break;
+      case WinCondition.mostRoundsWon:
+        winCond = 'best_of';
+        break;
+      case WinCondition.targetReached:
+        winCond = 'highest';
+        break;
+    }
+    
+    return {
+      'scoreType': primaryScoreUnit.endsWith('s') ? primaryScoreUnit : '${primaryScoreUnit}s',
+      'scoreFields': fields,
+      'winCondition': winCond,
+    };
   }
 
   SportConfigModel copyWith({

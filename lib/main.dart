@@ -8,11 +8,10 @@ import 'firebase_options.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/utils/app_constants.dart';
-import 'core/services/default_sports_service.dart';
-import 'core/services/app_initialization_service.dart';
-import 'core/repositories/sport_config_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_state.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
+import 'features/auth/presentation/pages/login_screen.dart';
 import 'features/splash/presentation/pages/splash_screen.dart';
 
 void main() async {
@@ -27,23 +26,6 @@ void main() async {
     debugPrint('Firebase initialized successfully');
   } catch (e) {
     debugPrint('Firebase initialization failed/timed out: $e');
-  }
-  
-  // Initialize default sports with timeout
-  try {
-    await DefaultSportsService.initializeDefaultSports()
-        .timeout(const Duration(seconds: 2));
-  } catch (e) {
-    debugPrint('Default sports initialization skipped/failed: $e');
-  }
-  
-  // Initialize enhanced sport configurations with timeout
-  try {
-    final sportConfigRepo = SportConfigRepository();
-    final appInitService = AppInitializationService(sportConfigRepo);
-    await appInitService.initializeApp().timeout(const Duration(seconds: 2));
-  } catch (e) {
-    debugPrint('App initialization skipped/failed: $e');
   }
   
   // Set preferred orientations
@@ -68,6 +50,8 @@ void main() async {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
+  static final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -81,13 +65,25 @@ class MyApp extends StatelessWidget {
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          return MaterialApp(
-            title: AppConstants.appName,
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: themeProvider.themeMode,
-            home: const SplashScreen(),
+          return BlocListener<AuthBloc, AuthState>(
+            listenWhen: (previous, current) =>
+                previous is! AuthUnauthenticated && current is AuthUnauthenticated,
+            listener: (context, state) {
+              // On logout, clear all routes and go to login
+              navigatorKey.currentState?.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+            child: MaterialApp(
+              navigatorKey: navigatorKey,
+              title: AppConstants.appName,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme,
+              darkTheme: AppTheme.darkTheme,
+              themeMode: themeProvider.themeMode,
+              home: const SplashScreen(),
+            ),
           );
         },
       ),

@@ -40,6 +40,51 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showForgotPasswordDialog(BuildContext context) {
+    final resetEmailController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Enter your email address and we\'ll send you a password reset link.'),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: resetEmailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Email',
+                prefixIcon: Icon(Icons.email_outlined),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = resetEmailController.text.trim();
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter your email')),
+                );
+                return;
+              }
+              Navigator.of(ctx).pop();
+              context.read<AuthBloc>().add(AuthResetPasswordRequested(email: email));
+            },
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -48,6 +93,13 @@ class _LoginScreenState extends State<LoginScreen> {
           if (state is AuthAuthenticated) {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const MainScreen()),
+            );
+          } else if (state is AuthPasswordResetSent) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Password reset email sent! Check your inbox.'),
+                backgroundColor: Colors.green,
+              ),
             );
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -165,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: isLoading ? null : () {
-                            // TODO: Implement forgot password
+                            _showForgotPasswordDialog(context);
                           },
                           child: const Text('Forgot Password?'),
                         ),

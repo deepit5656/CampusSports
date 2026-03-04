@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/team_model.dart';
@@ -91,10 +92,11 @@ class _UpdateMatchScoreScreenState extends State<UpdateMatchScoreScreen> {
     super.dispose();
   }
 
-  void _saveScore() {
+  void _saveScore() async {
     if (_formKey.currentState!.validate()) {
       // Build detailed score map
       final Map<String, TeamScore> detailedScore = {};
+      final Map<String, int> legacyScore = {};
       
       for (final teamId in [widget.team1.id, widget.team2.id]) {
         final Map<String, dynamic> scores = {};
@@ -123,24 +125,52 @@ class _UpdateMatchScoreScreenState extends State<UpdateMatchScoreScreen> {
           scores: scores,
           isWinner: _selectedWinnerId == teamId,
         );
+        
+        // Build legacy score from primary field
+        final primaryField = widget.sport.primaryScoreField;
+        legacyScore[teamId] = int.tryParse(
+          _scoreControllers[teamId]![primaryField.id]?.text ?? '0',
+        ) ?? 0;
       }
       
       // Auto-determine winner if not manually set
       if (_selectedWinnerId == null) {
         _selectedWinnerId = _autoDetectWinner(detailedScore);
       }
-      
-      // Update match with new scores
-      final updatedMatch = widget.match.copyWith(
-        detailedScore: detailedScore,
-        winnerId: _selectedWinnerId,
-        status: 'completed', // Mark as completed when scores are updated
-      );
-      
-      // TODO: Implement BLoC event to update match
-      // context.read<MatchBloc>().add(UpdateMatchScoreEvent(updatedMatch));
-      
-      Navigator.pop(context, updatedMatch);
+
+      // Save to Firestore
+      try {
+        await FirebaseFirestore.instance
+            .collection('matches')
+            .doc(widget.match.id)
+            .update({
+          'score': legacyScore,
+          'detailedScore': detailedScore.map(
+            (key, value) => MapEntry(key, value.toMap()),
+          ),
+          'winnerId': _selectedWinnerId,
+          'status': 'completed',
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Score saved successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pop(context, true);
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saving score: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+        }
+      }
     }
   }
 

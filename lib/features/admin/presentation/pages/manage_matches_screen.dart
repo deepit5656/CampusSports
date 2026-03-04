@@ -7,6 +7,7 @@ import '../../../../core/models/match_model.dart';
 import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/team_model.dart';
 import '../../../../core/models/default_sport_configurations_comprehensive.dart';
+import '../../../../core/models/institute_model.dart';
 import '../../../../core/utils/validators.dart';
 import 'cricket/cricket_match_control_screen.dart';
 import 'football/football_match_control_screen.dart';
@@ -648,6 +649,7 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
     final sports = await _firestore.collection('sports').get();
     final allTeams = await _firestore.collection('teams').get();
     final players = await _firestore.collection('players').get();
+    final institutesSnap = await _firestore.collection('institutes').get();
 
     if (sports.docs.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -659,9 +661,16 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
       return;
     }
 
+    // Build institutes map for display
+    final institutesMap = <String, InstituteModel>{};
+    for (final doc in institutesSnap.docs) {
+      institutesMap[doc.id] = InstituteModel.fromSnapshot(doc);
+    }
+
     String? selectedSportId = sports.docs.first.id;
     String? selectedTeam1Id;
     String? selectedTeam2Id;
+    String? selectedInstituteFilter; // null = show all
     String selectedCategory = 'Boys';
     DateTime selectedDate = DateTime.now();
     TimeOfDay selectedTime = TimeOfDay.now();
@@ -669,41 +678,29 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
     final formKey = GlobalKey<FormState>();
     bool isLoading = false;
 
-    // Helper function to get eligible teams for selected sport
-    List<TeamModel> getEligibleTeams(String? sportId) {
-      if (sportId == null) return [];
-      
-      try {
-        // Simply return all teams that have players
-        // Don't filter by numberOfPlayers if it's not set or problematic
-        final teamsWithPlayers = allTeams.docs
-            .map((doc) => TeamModel.fromSnapshot(doc))
-            .where((team) {
-          // Check if team has at least some players
-          final teamPlayerCount = players.docs
-              .where((playerDoc) {
-                final playerData = playerDoc.data() as Map<String, dynamic>?;
-                return playerData != null && playerData['teamId'] == team.id;
-              })
-              .length;
-          return teamPlayerCount > 0; // At least 1 player required
-        }).toList();
-        
-        return teamsWithPlayers.isNotEmpty 
-            ? teamsWithPlayers 
-            : allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
-      } catch (e) {
-        print('Error getting eligible teams: $e');
-        // Fallback: return all teams
-        return allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
+    // Helper: get all teams (optionally filtered by institute)
+    List<TeamModel> getFilteredTeams(String? instituteId) {
+      var teams = allTeams.docs.map((doc) => TeamModel.fromSnapshot(doc)).toList();
+      if (instituteId != null) {
+        teams = teams.where((t) => t.instituteId == instituteId).toList();
       }
+      return teams;
     }
 
-    // Initialize with eligible teams
-    var eligibleTeams = getEligibleTeams(selectedSportId);
-    if (eligibleTeams.isNotEmpty) {
-      selectedTeam1Id = eligibleTeams.first.id;
-      selectedTeam2Id = eligibleTeams.length > 1 ? eligibleTeams[1].id : eligibleTeams.first.id;
+    // Helper: display name with institute prefix
+    String teamDisplayName(TeamModel team) {
+      if (team.instituteId != null && institutesMap.containsKey(team.instituteId)) {
+        final inst = institutesMap[team.instituteId]!;
+        return '${inst.shortName} - ${team.name}';
+      }
+      return team.name;
+    }
+
+    // Initialize
+    var filteredTeams = getFilteredTeams(selectedInstituteFilter);
+    if (filteredTeams.isNotEmpty) {
+      selectedTeam1Id = filteredTeams.first.id;
+      selectedTeam2Id = filteredTeams.length > 1 ? filteredTeams[1].id : filteredTeams.first.id;
     }
 
     showDialog(
@@ -740,11 +737,37 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
                     onChanged: (value) {
                       setState(() {
                         selectedSportId = value;
-                        // Refresh eligible teams when sport changes
-                        eligibleTeams = getEligibleTeams(value);
-                        if (eligibleTeams.isNotEmpty) {
-                          selectedTeam1Id = eligibleTeams.first.id;
-                          selectedTeam2Id = eligibleTeams.length > 1 ? eligibleTeams[1].id : eligibleTeams.first.id;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Institute Filter Dropdown
+                  DropdownButtonFormField<String?>(
+                    value: selectedInstituteFilter,
+                    decoration: const InputDecoration(
+                      labelText: 'Filter by Institute',
+                      prefixIcon: Icon(Icons.school),
+                    ),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('All Institutes'),
+                      ),
+                      ...institutesMap.entries.map((entry) {
+                        return DropdownMenuItem<String?>(
+                          value: entry.key,
+                          child: Text('${entry.value.shortName} - ${entry.value.name}'),
+                        );
+                      }),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        selectedInstituteFilter = value;
+                        filteredTeams = getFilteredTeams(value);
+                        if (filteredTeams.isNotEmpty) {
+                          selectedTeam1Id = filteredTeams.first.id;
+                          selectedTeam2Id = filteredTeams.length > 1 ? filteredTeams[1].id : filteredTeams.first.id;
                         } else {
                           selectedTeam1Id = null;
                           selectedTeam2Id = null;
@@ -756,34 +779,34 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
 
                   // Team 1 Dropdown
                   DropdownButtonFormField<String?>(
-                    value: eligibleTeams.any((t) => t.id == selectedTeam1Id) ? selectedTeam1Id : null,
+                    value: filteredTeams.any((t) => t.id == selectedTeam1Id) ? selectedTeam1Id : null,
                     decoration: const InputDecoration(
                       labelText: 'Team 1',
                       prefixIcon: Icon(Icons.groups),
                     ),
-                    items: eligibleTeams.isEmpty 
-                      ? [DropdownMenuItem<String?>(value: null, child: Text('No eligible teams'))]
-                      : eligibleTeams.map((team) {
+                    items: filteredTeams.isEmpty 
+                      ? [const DropdownMenuItem<String?>(value: null, child: Text('No teams'))]
+                      : filteredTeams.map((team) {
                           return DropdownMenuItem<String?>(
                             value: team.id,
-                            child: Text(team.name),
+                            child: Text(teamDisplayName(team)),
                           );
                         }).toList(),
-                    onChanged: eligibleTeams.isEmpty ? null : (value) {
+                    onChanged: filteredTeams.isEmpty ? null : (value) {
                       setState(() => selectedTeam1Id = value);
                     },
                     validator: (value) {
-                      if (eligibleTeams.isEmpty) {
-                        return 'No teams available with complete rosters';
+                      if (filteredTeams.isEmpty) {
+                        return 'No teams available';
                       }
                       return null;
                     },
                   ),
-                  if (eligibleTeams.isEmpty)
+                  if (filteredTeams.isEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
-                        'Please add teams with complete player rosters for this sport',
+                        'Please add teams first',
                         style: TextStyle(
                           color: AppTheme.errorColor,
                           fontSize: 12,
@@ -794,25 +817,25 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
 
                   // Team 2 Dropdown
                   DropdownButtonFormField<String?>(
-                    value: eligibleTeams.any((t) => t.id == selectedTeam2Id) ? selectedTeam2Id : null,
+                    value: filteredTeams.any((t) => t.id == selectedTeam2Id) ? selectedTeam2Id : null,
                     decoration: const InputDecoration(
                       labelText: 'Team 2',
                       prefixIcon: Icon(Icons.groups),
                     ),
-                    items: eligibleTeams.isEmpty 
-                      ? [DropdownMenuItem<String?>(value: null, child: Text('No eligible teams'))]
-                      : eligibleTeams.map((team) {
+                    items: filteredTeams.isEmpty 
+                      ? [const DropdownMenuItem<String?>(value: null, child: Text('No teams'))]
+                      : filteredTeams.map((team) {
                           return DropdownMenuItem<String?>(
                             value: team.id,
-                            child: Text(team.name),
+                            child: Text(teamDisplayName(team)),
                           );
                         }).toList(),
-                    onChanged: eligibleTeams.isEmpty ? null : (value) {
+                    onChanged: filteredTeams.isEmpty ? null : (value) {
                       setState(() => selectedTeam2Id = value);
                     },
                     validator: (value) {
-                      if (eligibleTeams.isEmpty) {
-                        return 'No teams available with complete rosters';
+                      if (filteredTeams.isEmpty) {
+                        return 'No teams available';
                       }
                       return null;
                     },
@@ -898,10 +921,10 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
                   ? null
                   : () async {
                       if (formKey.currentState!.validate()) {
-                        if (eligibleTeams.isEmpty) {
+                        if (filteredTeams.isEmpty) {
                           ScaffoldMessenger.of(this.context).showSnackBar(
                             const SnackBar(
-                              content: Text('Please add teams with complete player rosters first!'),
+                              content: Text('Please add teams first!'),
                               backgroundColor: AppTheme.errorColor,
                             ),
                           );

@@ -68,6 +68,7 @@ class StandingModel extends Equatable {
 
   factory StandingModel.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    data['id'] = doc.id;
     return StandingModel.fromMap(data);
   }
 

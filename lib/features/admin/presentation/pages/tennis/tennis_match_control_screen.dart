@@ -17,6 +17,9 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final StandingsService _standingsService = StandingsService();
   
+  String _team1Name = 'Team 1';
+  String _team2Name = 'Team 2';
+  
   // Match state
   int team1Sets = 0;
   int team2Sets = 0;
@@ -43,6 +46,12 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
 
   void _loadMatchData() async {
     try {
+      // Load team names
+      final team1Doc = await _firestore.collection('teams').doc(widget.match.team1Id).get();
+      final team2Doc = await _firestore.collection('teams').doc(widget.match.team2Id).get();
+      if (team1Doc.exists) _team1Name = team1Doc.data()?['name'] ?? 'Team 1';
+      if (team2Doc.exists) _team2Name = team2Doc.data()?['name'] ?? 'Team 2';
+      
       final doc = await _firestore.collection('matches').doc(widget.match.id).get();
       if (doc.exists && mounted) {
         final data = doc.data();
@@ -320,7 +329,7 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
                         child: Column(
                           children: [
                             Text(
-                              'Team 1',
+                              _team1Name,
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
@@ -371,7 +380,7 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
                         child: Column(
                           children: [
                             Text(
-                              'Team 2',
+                              _team2Name,
                               style: TextStyle(
                                 color: Colors.white70,
                                 fontSize: 14,
@@ -445,7 +454,7 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
                       ),
                     ),
                     child: Text(
-                      isTiebreak ? 'Team 1\n+Point' : 'Team 1\n+Game',
+                      isTiebreak ? '$_team1Name\n+Point' : '$_team1Name\n+Game',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
@@ -463,7 +472,7 @@ class _TennisMatchControlScreenState extends State<TennisMatchControlScreen> {
                       ),
                     ),
                     child: Text(
-                      isTiebreak ? 'Team 2\n+Point' : 'Team 2\n+Game',
+                      isTiebreak ? '$_team2Name\n+Point' : '$_team2Name\n+Game',
                       textAlign: TextAlign.center,
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),

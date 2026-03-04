@@ -120,6 +120,7 @@ class MatchModel extends Equatable {
 
   factory MatchModel.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    data['id'] = doc.id;
     return MatchModel.fromMap(data);
   }
 

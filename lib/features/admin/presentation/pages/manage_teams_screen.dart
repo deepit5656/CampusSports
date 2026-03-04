@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/models/team_model.dart';
+import '../../../../core/models/institute_model.dart';
 import '../../../../core/utils/validators.dart';
 
 class ManageTeamsScreen extends StatefulWidget {
@@ -21,6 +22,23 @@ class ManageTeamsScreen extends StatefulWidget {
 
 class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  Map<String, InstituteModel> _institutesMap = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInstitutes();
+  }
+
+  Future<void> _loadInstitutes() async {
+    final snapshot = await _firestore.collection('institutes').get();
+    setState(() {
+      _institutesMap = {
+        for (final doc in snapshot.docs)
+          doc.id: InstituteModel.fromMap(doc.data()),
+      };
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -191,6 +209,23 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                         color: AppTheme.textSecondary,
                       ),
                 ),
+                if (team.instituteId != null &&
+                    _institutesMap.containsKey(team.instituteId)) ...[                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.account_balance,
+                          size: 12, color: AppTheme.textSecondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        _institutesMap[team.instituteId]!.shortName,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: AppTheme.accentGradientStart,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -210,9 +245,19 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
   void _showAddEditDialog(BuildContext context, {TeamModel? team}) async {
     final nameController = TextEditingController(text: team?.name ?? '');
     final departmentController = TextEditingController(text: team?.department ?? '');
+    String? selectedInstituteId = team?.instituteId;
     
     final formKey = GlobalKey<FormState>();
     bool isLoading = false;
+
+    // Load institutes
+    final institutesSnapshot = await _firestore
+        .collection('institutes')
+        .orderBy('name')
+        .get();
+    final institutes = institutesSnapshot.docs
+        .map((doc) => InstituteModel.fromMap(doc.data()))
+        .toList();
 
     showDialog(
       context: context,
@@ -246,6 +291,29 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                     ),
                     validator: (value) => Validators.validateRequired(value, 'Department'),
                   ),
+                  const SizedBox(height: 16),
+                  if (institutes.isNotEmpty) ...[
+                    DropdownButtonFormField<String?>(
+                      value: selectedInstituteId,
+                      decoration: const InputDecoration(
+                        labelText: 'Institute (Optional)',
+                        prefixIcon: Icon(Icons.account_balance),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('No Institute'),
+                        ),
+                        ...institutes.map((inst) => DropdownMenuItem<String?>(
+                              value: inst.id,
+                              child: Text('${inst.shortName} - ${inst.name}'),
+                            )),
+                      ],
+                      onChanged: (value) {
+                        setState(() => selectedInstituteId = value);
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -272,6 +340,7 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                               department: departmentController.text.trim(),
                               logo: '',
                               sportId: null,
+                              instituteId: selectedInstituteId,
                               createdAt: DateTime.now(),
                             );
                             await docRef.set(newTeam.toMap());
@@ -280,6 +349,7 @@ class _ManageTeamsScreenState extends State<ManageTeamsScreen> {
                             await _firestore.collection('teams').doc(team.id).update({
                               'name': nameController.text.trim(),
                               'department': departmentController.text.trim(),
+                              'instituteId': selectedInstituteId,
                             });
                           }
 

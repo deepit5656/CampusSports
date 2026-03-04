@@ -489,7 +489,10 @@ class _StandingsScreenState extends State<StandingsScreen> {
     setState(() => _isCalculating = true);
 
     try {
-      await _standingsService.updateStandingsForSport(_selectedSportId!);
+      await _standingsService.updateStandingsForSport(
+        _selectedSportId!,
+        category: _selectedCategory,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

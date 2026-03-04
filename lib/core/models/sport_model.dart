@@ -69,6 +69,8 @@ class SportModel extends Equatable {
 
   factory SportModel.fromSnapshot(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    // Use the Firestore document ID as the canonical ID
+    data['id'] = doc.id;
     return SportModel.fromMap(data);
   }
 

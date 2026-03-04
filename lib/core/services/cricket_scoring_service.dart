@@ -71,6 +71,16 @@ class CricketScoringService {
         .toList();
   }
 
+  Future<CricketPlayer?> getPlayer(String playerId) async {
+    final doc = await _firestore
+        .collection(_playersCollection)
+        .doc(playerId)
+        .get();
+    
+    if (!doc.exists) return null;
+    return CricketPlayer.fromMap(doc.data()!);
+  }
+
   // Inning Management
   Future<String> startInning(CricketInning inning) async {
     final doc = await _firestore

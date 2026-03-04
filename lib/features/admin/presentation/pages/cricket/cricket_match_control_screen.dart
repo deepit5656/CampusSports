@@ -4,8 +4,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../../core/theme/app_theme.dart';
 import '../../../../../core/models/match_model.dart';
 import '../../../../../core/models/team_model.dart';
-import '../../../../../core/models/default_sport_configurations_comprehensive.dart';
-import '../../../../scoring/presentation/pages/universal_live_scoring_screen.dart';
+import '../../../../../core/services/cricket_scoring_service.dart';
+import '../cricket_match_setup_screen.dart';
+import '../cricket_player_management_screen.dart';
 
 class CricketMatchControlScreen extends StatefulWidget {
   final String matchId;
@@ -193,7 +194,9 @@ class _CricketMatchControlScreenState extends State<CricketMatchControlScreen> {
             ] else ...[
               _buildTossInfo(),
               const SizedBox(height: 24),
-              if (_selectedStatus == 'live') _buildStartMatchButton(),
+              _buildPlayerManagement(),
+            const SizedBox(height: 24),
+            if (_selectedStatus == 'live') _buildStartMatchButton(),
             ],
           ],
         ).animate().fadeIn(),
@@ -813,6 +816,113 @@ class _CricketMatchControlScreenState extends State<CricketMatchControlScreen> {
     }
   }
 
+  Widget _buildPlayerManagement() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.people, color: Color(0xFF10b981), size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Player Management',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Add players for both teams before starting the match',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildPlayerMgmtButton(
+                  _hostTeam!.name,
+                  _match!.team1Id,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildPlayerMgmtButton(
+                  _visitorTeam!.name,
+                  _match!.team2Id,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlayerMgmtButton(String teamName, String teamId) {
+    return FutureBuilder<List>(
+      future: CricketScoringService().getTeamPlayers(teamId),
+      builder: (context, snapshot) {
+        final count = snapshot.data?.length ?? 0;
+        return ElevatedButton(
+          onPressed: () async {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => CricketPlayerManagementScreen(
+                  teamId: teamId,
+                  teamName: teamName,
+                ),
+              ),
+            );
+            setState(() {}); // Refresh player counts
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.surfaceDark,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                teamName,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$count players',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: count > 0 ? const Color(0xFF10b981) : AppTheme.warningColor,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _startMatch() async {
     if (!_tossCompleted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -824,36 +934,20 @@ class _CricketMatchControlScreenState extends State<CricketMatchControlScreen> {
       return;
     }
 
-    try {
-      // Get cricket sport configuration
-      final cricketConfig = DefaultSportConfigurations.getCricketConfig();
-      
-      // Update match status to live
-      await _firestore.collection('matches').doc(widget.matchId).update({
-        'status': 'live',
-      });
-
-      // Navigate to scoring screen
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => UniversalLiveScoringScreen(
-              matchId: widget.matchId,
-              sportConfig: cricketConfig,
-            ),
+    // Navigate to cricket match setup for player selection & live scoring
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CricketMatchSetupScreen(
+            matchId: widget.matchId,
+            team1Id: _match!.team1Id,
+            team1Name: _hostTeam!.name,
+            team2Id: _match!.team2Id,
+            team2Name: _visitorTeam!.name,
           ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error starting match: $e'),
-            backgroundColor: AppTheme.errorColor,
-          ),
-        );
-      }
+        ),
+      );
     }
   }
 

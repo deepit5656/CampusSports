@@ -7,6 +7,8 @@ import '../../../home/presentation/pages/standings_screen.dart';
 import 'manage_sports_screen.dart';
 import 'manage_teams_screen.dart';
 import 'manage_matches_screen.dart';
+import 'manage_institutes_screen.dart';
+import 'manage_tournaments_screen.dart';
 import 'cricket_match_list_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -146,16 +148,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           _firestore.collection('sports').get(),
                           _firestore.collection('teams').get(),
                           _firestore.collection('matches').get(),
+                          _firestore.collection('institutes').get(),
                         ]),
                         builder: (context, snapshot) {
                           int sportsCount = 0;
                           int teamsCount = 0;
                           int matchesCount = 0;
+                          int institutesCount = 0;
 
-                          if (snapshot.hasData && snapshot.data!.length == 3) {
+                          if (snapshot.hasData && snapshot.data!.length == 4) {
                             sportsCount = snapshot.data![0].docs.length;
                             teamsCount = snapshot.data![1].docs.length;
                             matchesCount = snapshot.data![2].docs.length;
+                            institutesCount = snapshot.data![3].docs.length;
                           }
 
                           return Column(
@@ -189,6 +194,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                       'Matches',
                                       matchesCount.toString(),
                                       AppTheme.successGradient,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: _buildStatCard(
+                                      context,
+                                      Icons.school,
+                                      'Institutes',
+                                      institutesCount.toString(),
+                                      const LinearGradient(
+                                        colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -274,6 +293,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const SizedBox(height: 12),
 
                       AdminDashboardCard(
+                        icon: Icons.school,
+                        title: 'Manage Institutes',
+                        subtitle: 'Add university departments & institutes',
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF9C27B0), Color(0xFF7B1FA2)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ManageInstitutesScreen(),
+                            ),
+                          );
+                        },
+                      ).animate().fadeIn(delay: 350.ms).slideX(begin: -0.2, end: 0),
+
+                      const SizedBox(height: 12),
+
+                      AdminDashboardCard(
                         icon: Icons.groups,
                         title: 'Manage Teams',
                         subtitle: 'Add, edit, or remove teams',
@@ -345,6 +385,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           );
                         },
                       ).animate().fadeIn(delay: 700.ms).slideX(begin: -0.2, end: 0),
+
+                      const SizedBox(height: 12),
+                      AdminDashboardCard(
+                        icon: Icons.workspace_premium,
+                        title: 'Tournaments',
+                        subtitle: 'Create & manage tournaments with auto fixtures',
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFe11d48), Color(0xFFbe123c)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ManageTournamentsScreen(),
+                            ),
+                          );
+                        },
+                      ).animate().fadeIn(delay: 800.ms).slideX(begin: -0.2, end: 0),
                     ],
                   ),
                 ),

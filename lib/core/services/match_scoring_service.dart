@@ -346,14 +346,14 @@ class MatchScoringService {
   }
 
   /// Get live match state
-  Stream<MatchState> getMatchState(String matchId) {
+  Stream<MatchState?> getMatchState(String matchId) {
     return _firestore
         .collection('match_states')
         .doc(matchId)
         .snapshots()
         .map((snapshot) {
       if (!snapshot.exists) {
-        throw Exception('Match state not found');
+        return null;
       }
       return MatchState.fromMap(snapshot.data()!);
     });

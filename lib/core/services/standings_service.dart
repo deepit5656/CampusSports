@@ -58,10 +58,30 @@ class StandingsService {
 
       // Process each match
       for (var match in matches) {
-        if (match.score == null || match.score!.isEmpty) continue;
+        // Get primary scores — prefer detailedScore, fall back to legacy score
+        int team1Score = 0;
+        int team2Score = 0;
 
-        final team1Score = match.score![match.team1Id] ?? 0;
-        final team2Score = match.score![match.team2Id] ?? 0;
+        if (match.detailedScore != null && match.detailedScore!.isNotEmpty) {
+          // Use detailedScore: find the primary (first) score value
+          final ts1 = match.detailedScore![match.team1Id];
+          final ts2 = match.detailedScore![match.team2Id];
+          if (ts1 != null && ts1.scores.isNotEmpty) {
+            team1Score = (ts1.scores.values.first is num)
+                ? (ts1.scores.values.first as num).toInt()
+                : 0;
+          }
+          if (ts2 != null && ts2.scores.isNotEmpty) {
+            team2Score = (ts2.scores.values.first is num)
+                ? (ts2.scores.values.first as num).toInt()
+                : 0;
+          }
+        } else if (match.score != null && match.score!.isNotEmpty) {
+          team1Score = match.score![match.team1Id] ?? 0;
+          team2Score = match.score![match.team2Id] ?? 0;
+        } else {
+          continue; // No score data at all, skip
+        }
 
         // Update played
         teamStats[match.team1Id]!['played'] = 
@@ -69,7 +89,7 @@ class StandingsService {
         teamStats[match.team2Id]!['played'] = 
             (teamStats[match.team2Id]!['played'] ?? 0) + 1;
 
-        // Update goals
+        // Update goals/points for & against
         teamStats[match.team1Id]!['goalsFor'] = 
             (teamStats[match.team1Id]!['goalsFor'] ?? 0) + team1Score;
         teamStats[match.team1Id]!['goalsAgainst'] = 
@@ -79,17 +99,24 @@ class StandingsService {
         teamStats[match.team2Id]!['goalsAgainst'] = 
             (teamStats[match.team2Id]!['goalsAgainst'] ?? 0) + team1Score;
 
-        // Determine winner
-        if (team1Score > team2Score) {
-          // Team 1 wins
+        // Determine winner — prefer explicit winnerId, fall back to score comparison
+        String? winnerId = match.winnerId;
+        if (winnerId == null || winnerId.isEmpty) {
+          if (team1Score > team2Score) {
+            winnerId = match.team1Id;
+          } else if (team2Score > team1Score) {
+            winnerId = match.team2Id;
+          }
+        }
+
+        if (winnerId == match.team1Id) {
           teamStats[match.team1Id]!['won'] = 
               (teamStats[match.team1Id]!['won'] ?? 0) + 1;
           teamStats[match.team1Id]!['points'] = 
               (teamStats[match.team1Id]!['points'] ?? 0) + 3;
           teamStats[match.team2Id]!['lost'] = 
               (teamStats[match.team2Id]!['lost'] ?? 0) + 1;
-        } else if (team2Score > team1Score) {
-          // Team 2 wins
+        } else if (winnerId == match.team2Id) {
           teamStats[match.team2Id]!['won'] = 
               (teamStats[match.team2Id]!['won'] ?? 0) + 1;
           teamStats[match.team2Id]!['points'] = 

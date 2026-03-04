@@ -7,6 +7,7 @@ abstract class AuthRepository {
   Future<UserModel> signUp(String email, String password, String name, String role);
   Future<void> signOut();
   Future<UserModel?> getCurrentUser();
+  Future<void> resetPassword(String email);
   Stream<User?> get authStateChanges;
 }
 
@@ -73,6 +74,17 @@ class AuthRepositoryImpl implements AuthRepository {
       throw _handleAuthException(e);
     } catch (e) {
       throw Exception('Failed to sign up: ${e.toString()}');
+    }
+  }
+
+  @override
+  Future<void> resetPassword(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('Failed to send reset email: ${e.toString()}');
     }
   }
 
