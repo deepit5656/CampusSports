@@ -115,7 +115,7 @@ class AppTheme {
       ),
       
       // Card Theme - Modern Rounded Style
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: cardDark,
         elevation: 8,
         shadowColor: Colors.black.withOpacity(0.15),
@@ -281,7 +281,7 @@ class AppTheme {
       ),
       
       // Card Theme
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 4,
         shadowColor: Colors.black.withOpacity(0.1),

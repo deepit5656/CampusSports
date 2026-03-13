@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/models/match_model.dart';
 import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/team_model.dart';
@@ -137,8 +138,36 @@ class _UpdateMatchScoreScreenState extends State<UpdateMatchScoreScreen> {
         status: 'completed', // Mark as completed when scores are updated
       );
       
-      // TODO: Implement BLoC event to update match
-      // context.read<MatchBloc>().add(UpdateMatchScoreEvent(updatedMatch));
+      // Save to Firestore
+      try {
+        final _firestore = FirebaseFirestore.instance;
+        await _firestore.collection('matches').doc(widget.match.id).update({
+          'detailedScore': detailedScore.map(
+            (key, value) => MapEntry(key, value.toMap()),
+          ),
+          'winnerId': _selectedWinnerId,
+          'status': 'completed',
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Match score updated successfully!'),
+              backgroundColor: AppTheme.successColor,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error updating match: $e'),
+              backgroundColor: AppTheme.errorColor,
+            ),
+          );
+          return;
+        }
+      }
       
       Navigator.pop(context, updatedMatch);
     }
