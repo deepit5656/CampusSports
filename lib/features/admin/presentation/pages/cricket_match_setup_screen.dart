@@ -163,6 +163,10 @@ class _CricketMatchSetupScreenState extends State<CricketMatchSetupScreen> {
 
       setState(() => _isLoading = false);
 
+      // Get batting and bowling team players
+      final batsmenList = battingTeamId == widget.team1Id ? _team1Players : _team2Players;
+      final bowlersList = bowlingTeamId == widget.team1Id ? _team1Players : _team2Players;
+
       // Navigate to live scoring
       Navigator.pushReplacement(
         context,
@@ -171,6 +175,8 @@ class _CricketMatchSetupScreenState extends State<CricketMatchSetupScreen> {
             matchId: widget.matchId,
             inningId: inningId,
             config: config,
+            batsmenList: batsmenList,
+            bowlersList: bowlersList,
           ),
         ),
       );

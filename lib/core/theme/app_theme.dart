@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Color Palette - Modern & Friendly
@@ -66,48 +65,57 @@ class AppTheme {
       ),
       
       // Text Theme
-      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme).copyWith(
-        displayLarge: GoogleFonts.poppins(
+      textTheme: ThemeData.dark().textTheme.copyWith(
+        displayLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        displayMedium: GoogleFonts.poppins(
+        displayMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        displaySmall: GoogleFonts.poppins(
+        displaySmall: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: textColor,
         ),
-        headlineMedium: GoogleFonts.poppins(
+        headlineMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textColor,
         ),
-        titleLarge: GoogleFonts.poppins(
+        titleLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textColor,
         ),
-        titleMedium: GoogleFonts.poppins(
+        titleMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: textColor,
         ),
-        bodyLarge: GoogleFonts.poppins(
+        bodyLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.normal,
           color: textColor,
         ),
-        bodyMedium: GoogleFonts.poppins(
+        bodyMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: textColor,
         ),
-        bodySmall: GoogleFonts.poppins(
+        bodySmall: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 12,
           fontWeight: FontWeight.normal,
           color: textSecondary,
@@ -130,7 +138,8 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.poppins(
+        titleTextStyle: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: textColor,
@@ -159,7 +168,8 @@ class AppTheme {
           borderSide: const BorderSide(color: errorColor, width: 1),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        hintStyle: GoogleFonts.poppins(
+        hintStyle: const TextStyle(
+          fontFamily: 'Roboto',
           color: textSecondary,
           fontSize: 14,
         ),
@@ -176,7 +186,8 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
-          textStyle: GoogleFonts.poppins(
+          textStyle: const TextStyle(
+            fontFamily: 'Roboto',
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -197,11 +208,13 @@ class AppTheme {
         unselectedItemColor: textSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
-        selectedLabelStyle: GoogleFonts.poppins(
+        selectedLabelStyle: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.poppins(
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 12,
           fontWeight: FontWeight.normal,
         ),
@@ -232,48 +245,57 @@ class AppTheme {
       ),
       
       // Text Theme
-      textTheme: GoogleFonts.poppinsTextTheme(ThemeData.light().textTheme).copyWith(
-        displayLarge: GoogleFonts.poppins(
+      textTheme: ThemeData.light().textTheme.copyWith(
+        displayLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 32,
           fontWeight: FontWeight.bold,
           color: Colors.black87,
         ),
-        displayMedium: GoogleFonts.poppins(
+        displayMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 28,
           fontWeight: FontWeight.bold,
           color: Colors.black87,
         ),
-        displaySmall: GoogleFonts.poppins(
+        displaySmall: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 24,
           fontWeight: FontWeight.bold,
           color: Colors.black87,
         ),
-        headlineMedium: GoogleFonts.poppins(
+        headlineMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
-        titleLarge: GoogleFonts.poppins(
+        titleLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 18,
           fontWeight: FontWeight.w600,
           color: Colors.black87,
         ),
-        titleMedium: GoogleFonts.poppins(
+        titleMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.w500,
           color: Colors.black87,
         ),
-        bodyLarge: GoogleFonts.poppins(
+        bodyLarge: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 16,
           fontWeight: FontWeight.normal,
           color: Colors.black87,
         ),
-        bodyMedium: GoogleFonts.poppins(
+        bodyMedium: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 14,
           fontWeight: FontWeight.normal,
           color: Colors.black87,
         ),
-        bodySmall: GoogleFonts.poppins(
+        bodySmall: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 12,
           fontWeight: FontWeight.normal,
           color: Colors.black54,
@@ -296,7 +318,8 @@ class AppTheme {
         backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.poppins(
+        titleTextStyle: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 20,
           fontWeight: FontWeight.w600,
           color: Colors.black87,
@@ -325,7 +348,8 @@ class AppTheme {
           borderSide: const BorderSide(color: errorColor, width: 1),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        hintStyle: GoogleFonts.poppins(
+        hintStyle: const TextStyle(
+          fontFamily: 'Roboto',
           color: Colors.black38,
           fontSize: 14,
         ),
@@ -342,7 +366,8 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(30),
           ),
-          textStyle: GoogleFonts.poppins(
+          textStyle: const TextStyle(
+            fontFamily: 'Roboto',
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -363,11 +388,13 @@ class AppTheme {
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         elevation: 8,
-        selectedLabelStyle: GoogleFonts.poppins(
+        selectedLabelStyle: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
-        unselectedLabelStyle: GoogleFonts.poppins(
+        unselectedLabelStyle: const TextStyle(
+          fontFamily: 'Roboto',
           fontSize: 12,
           fontWeight: FontWeight.normal,
         ),

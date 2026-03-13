@@ -8,6 +8,7 @@ import '../../../../core/models/sport_model.dart';
 import '../../../../core/models/team_model.dart';
 import '../../../../core/models/default_sport_configurations_comprehensive.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/services/standings_service.dart';
 import 'cricket/cricket_match_control_screen.dart';
 import 'football/football_match_control_screen.dart';
 import 'basketball/basketball_match_control_screen.dart';
@@ -1088,6 +1089,32 @@ class _ManageMatchesScreenState extends State<ManageMatchesScreen>
                             },
                             'winnerId': winnerId,
                           });
+
+                          // Update standings if match is completed
+                          if (selectedStatus == 'completed') {
+                            try {
+                              final StandingsService standingsService = StandingsService();
+                              final updatedMatch = MatchModel(
+                                id: match.id,
+                                sportId: match.sportId,
+                                team1Id: match.team1Id,
+                                team2Id: match.team2Id,
+                                dateTime: match.dateTime,
+                                venue: match.venue,
+                                status: 'completed',
+                                category: match.category,
+                                score: {
+                                  match.team1Id: team1Score,
+                                  match.team2Id: team2Score,
+                                },
+                                createdAt: match.createdAt,
+                                winnerId: winnerId,
+                              );
+                              await standingsService.onMatchCompleted(updatedMatch);
+                            } catch (e) {
+                              print('Error updating standings: $e');
+                            }
+                          }
 
                           Navigator.pop(dialogContext);
                           ScaffoldMessenger.of(this.context).showSnackBar(

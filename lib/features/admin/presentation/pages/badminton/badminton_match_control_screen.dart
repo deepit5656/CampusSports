@@ -346,9 +346,9 @@ class _BadmintonMatchControlScreenState extends State<BadmintonMatchControlScree
       final team1Score = _setScores[i]!['team1']!;
       final team2Score = _setScores[i]!['team2']!;
       
-      if ((team1Score >= 21 && team1Score - team2Score >= 2) || team1Score == 30) {
+      if ((team1Score >= _pointsToWinSet && team1Score - team2Score >= 2) || team1Score == 30) {
         _setsWonTeam1++;
-      } else if ((team2Score >= 21 && team2Score - team1Score >= 2) || team2Score == 30) {
+      } else if ((team2Score >= _pointsToWinSet && team2Score - team1Score >= 2) || team2Score == 30) {
         _setsWonTeam2++;
       }
     }
