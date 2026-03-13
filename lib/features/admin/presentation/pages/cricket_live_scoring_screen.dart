@@ -712,9 +712,7 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(4),
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Show dialog for other runs
-                    },
+                    onPressed: _showOtherRunsDialog,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.surfaceDark,
                       foregroundColor: AppTheme.textColor,
@@ -962,6 +960,237 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
     );
   }
 
+  void _showOtherRunsDialog() {
+    final controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text(
+          'Enter Runs',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Enter run value (0-9)',
+            hintStyle: const TextStyle(color: Colors.grey),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.grey.shade700),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: Colors.green),
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final runs = int.tryParse(controller.text) ?? 0;
+              if (runs >= 0 && runs <= 9) {
+                _recordRuns(runs);
+                Navigator.pop(context);
+              } else {
+                _showError('Please enter a value between 0-9');
+              }
+              controller.dispose();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade700,
+            ),
+            child: const Text('Record'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDetailedStats() {
+    if (_inning == null) {
+      _showError('Match data not available');
+      return;
+    }
+
+    int totalWickets = _inning!.wickets;
+    int totalRuns = _inning!.totalRuns;
+    double overs = _inning!.overs;
+    
+    // Calculate extras
+    int totalExtras = 0;
+    for (var ball in _currentOverBalls) {
+      totalExtras += ball.extras;
+    }
+
+    // Calculate boundaries
+    int fours = 0;
+    int sixes = 0;
+    for (var stat in _battingStats) {
+      fours += stat.fours;
+      sixes += stat.sixes;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.surfaceDark,
+        title: const Text(
+          'Inning Statistics',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildStatRow('Total Runs', totalRuns.toString()),
+              _buildStatRow('Wickets', totalWickets.toString()),
+              _buildStatRow('Overs', overs.toStringAsFixed(1)),
+              const Divider(color: Colors.grey),
+              _buildStatRow('Boundaries', '${fours}x4 ${sixes}x6'),
+              _buildStatRow('Total Extras', totalExtras.toString()),
+              _buildStatRow('Run Rate', (_cricketService.calculateRunRate(totalRuns, overs)).toStringAsFixed(2)),
+              const Divider(color: Colors.grey),
+              _buildStatRow('Batsmen', _battingStats.length.toString()),
+              _buildStatRow('Bowlers', _bowlingStats.length.toString()),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade900.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Top Scorer',
+                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                    ),
+                    const SizedBox(height: 4),
+                    if (_battingStats.isNotEmpty)
+                      Text(
+                        '${_battingStats.first.playerName} (${_battingStats.first.runs})',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      )
+                    else
+                      const Text(
+                        'No batsmen yet',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryGradientStart,
+            ),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _saveAndExit() async {
+    if (_inning == null) {
+      _showError('No data to save');
+      return;
+    }
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          backgroundColor: AppTheme.surfaceDark,
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              const Text(
+                'Saving inning...',
+                style: TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Save the inning data
+      await _cricketService.saveInning(_inning!);
+
+      // Pop the loading dialog
+      if (mounted) {
+        Navigator.pop(context);
+      }
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Inning saved successfully'),
+          backgroundColor: AppTheme.successColor,
+          duration: Duration(seconds: 1),
+        ),
+      );
+
+      // Pop the cricket scoring screen
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          Navigator.pop(context);
+        }
+      });
+    } catch (e) {
+      // Pop the loading dialog if still showing
+      if (mounted && Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      _showError('Failed to save inning: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -973,15 +1202,11 @@ class _CricketLiveScoringScreenState extends State<CricketLiveScoringScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.analytics),
-            onPressed: () {
-              // TODO: Show detailed stats
-            },
+            onPressed: _showDetailedStats,
           ),
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: () {
-              // TODO: Save and exit
-            },
+            onPressed: _saveAndExit,
           ),
         ],
       ),
