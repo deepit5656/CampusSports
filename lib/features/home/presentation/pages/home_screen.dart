@@ -127,46 +127,66 @@ class _HomeScreenState extends State<HomeScreen> {
                           }
                         }
 
-                        return Row(
-                          children: [
-                            Expanded(
-                              child: StatsCard(
-                                icon: Icons.sports,
-                                label: 'Total',
-                                value: total.toString(),
-                                gradient: AppTheme.primaryGradient,
-                              ),
+                        final statCards = [
+                          (
+                            icon: Icons.sports,
+                            label: 'Total',
+                            value: total.toString(),
+                            gradient: AppTheme.primaryGradient,
+                          ),
+                          (
+                            icon: Icons.schedule,
+                            label: 'Upcoming',
+                            value: upcoming.toString(),
+                            gradient: AppTheme.accentGradient,
+                          ),
+                          (
+                            icon: Icons.play_circle,
+                            label: 'Live',
+                            value: live.toString(),
+                            gradient: AppTheme.successGradient,
+                          ),
+                          (
+                            icon: Icons.check_circle,
+                            label: 'Completed',
+                            value: completed.toString(),
+                            gradient: LinearGradient(
+                              colors: [Colors.grey.shade700, Colors.grey.shade900],
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatsCard(
-                                icon: Icons.schedule,
-                                label: 'Upcoming',
-                                value: upcoming.toString(),
-                                gradient: AppTheme.accentGradient,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatsCard(
-                                icon: Icons.play_circle,
-                                label: 'Live',
-                                value: live.toString(),
-                                gradient: AppTheme.successGradient,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: StatsCard(
-                                icon: Icons.check_circle,
-                                label: 'Completed',
-                                value: completed.toString(),
-                                gradient: LinearGradient(
-                                  colors: [Colors.grey.shade700, Colors.grey.shade900],
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
+                        ];
+
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            const spacing = 12.0;
+                            final cardsPerRow = constraints.maxWidth >= 1100
+                                ? 4
+                                : constraints.maxWidth >= 700
+                                    ? 2
+                                    : 1;
+                            final cardWidth =
+                                (constraints.maxWidth - (spacing * (cardsPerRow - 1))) /
+                                    cardsPerRow;
+
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: statCards
+                                  .map(
+                                    (card) => SizedBox(
+                                      width: cardWidth,
+                                      child: StatsCard(
+                                        icon: card.icon,
+                                        label: card.label,
+                                        value: card.value,
+                                        gradient: card.gradient,
+                                        height: 138,
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
+                            );
+                          },
                         );
                       },
                     ),
