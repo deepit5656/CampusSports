@@ -1,274 +1,151 @@
-# CampusSports 🏆
+# Sports Event Manager
 
-A modern Flutter application for managing and displaying university sports event information with real-time updates and comprehensive admin features.
+A Flutter application for managing and displaying university sports events with real-time Firebase updates.
 
-![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)
-![Dart](https://img.shields.io/badge/Dart-3.0+-blue.svg)
-![Firebase](https://img.shields.io/badge/Firebase-Latest-orange.svg)
+## Overview
 
-## 🌟 Features
+Sports Event Manager supports two usage modes:
 
-### Public Access (No Login Required)
-- Browse all sports categories and matches
-- View live match scores and schedules
-- Check team standings and rankings
-- Real-time data synchronization
+- Public mode: browse sports, matches, and standings without login.
+- Admin mode: sign in to manage sports data, teams, and match workflows.
 
-### Admin Features (Login Required)
-- Manage sports categories
-- Create and manage teams
-- Schedule matches and update results
-- Maintain standings and points tables
+The app uses Firebase for authentication and data storage, and is built with Flutter + BLoC.
 
-## 🛠️ Tech Stack
+## Core Features
 
-- **Framework:** Flutter 3.0+
-- **State Management:** flutter_bloc
-- **Backend:** Firebase (Auth, Firestore, Storage)
-- **UI:** Custom gradients, animations, dark theme
+### Public access
 
-## 🏗️ Architecture
+- Browse sports categories
+- View upcoming, live, and completed matches
+- Open match details and live score screens
+- View standings tables
 
-Clean Architecture with BLoC pattern:
+### Admin access
 
-```
+- Create and manage sports
+- Create and manage teams/players
+- Schedule matches
+- Update scores and complete matches
+
+## Tech Stack
+
+- Flutter (Dart 3, Flutter 3+)
+- State management: flutter_bloc, provider (theme state)
+- Firebase: firebase_core, firebase_auth, cloud_firestore, firebase_storage
+- UI and utilities: flutter_animate, shimmer, lottie, cached_network_image, flutter_svg, intl, image_picker, share_plus, shared_preferences
+
+## Project Structure
+
+```text
 lib/
-├── core/
-│   ├── models/          # Data models
-│   ├── theme/           # App theme
-│   └── utils/           # Utilities
-├── features/
-│   ├── auth/            # Authentication
-│   │   ├── data/        # Repositories
-│   │   └── presentation/ # BLoC & UI
-│   ├── home/            # User screens
-│   ├── admin/           # Admin panel
-│   ├── auth/            # Authentication
-│   ├── home/            # Home screen
-│   └── splash/          # Splash screen
+  core/
+    models/
+    repositories/
+    services/
+    theme/
+    utils/
+  features/
+    admin/
+    auth/
+    home/
+    scoring/
+    splash/
+  firebase_options.dart
+  main.dart
 ```
 
-## 🚀 Getting Started
+## Data Model (Firestore)
 
-### Prerequisites
+Main collections used by the app:
 
-- Flutter SDK 3.0+ ([Install Flutter](https://docs.flutter.dev/get-started/install))
-- Dart SDK 3.0+ (comes with Flutter)
-- Android Studio or VS Code with Flutter extension
-- Git
+- users
+- sports
+- teams
+- matches
+- standings
 
-### Installation Steps
+Important enum-like values used in code:
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/deepit5656/CampusSports.git
-   cd CampusSports
-   ```
+- Roles: admin, user
+- Match status: upcoming, live, completed, cancelled
 
-2. **Install Flutter dependencies**
-   ```bash
-   flutter pub get
-   ```
+## Getting Started
 
-3. **Verify Flutter setup**
-   ```bash
-   flutter doctor
-   ```
-   Fix any issues reported before proceeding.
+### 1. Prerequisites
 
-4. **Run the app**
-   
-   For Android:
-   ```bash
-   flutter run
-   ```
-   
-   For Chrome (Web):
-   ```bash
-   flutter run -d chrome
-   ```
+- Flutter SDK installed and available in PATH
+- A Firebase project (for Auth + Firestore + Storage)
+- Android Studio or VS Code
 
-**Note:** The project already includes Firebase configuration files (`google-services.json` and `firebase_options.dart`), so Firebase is ready to use out of the box!
+### 2. Install dependencies
 
-### Admin Access
-
-To test admin features:
-1. Run the app and go to Profile tab
-2. Sign up with any email/password
-3. Contact the repository owner to upgrade your account to admin role
-
-### Troubleshooting
-
-- **Build errors**: Run `flutter clean` then `flutter pub get`
-- **Firebase errors**: Ensure you're connected to the internet
-- **Gradle errors**: Check your internet connection and try again
-
-## 📱 Screenshots
-
-_Coming soon_
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 👤 Author
-
-**deepit5656**
-- GitHub: [@deepit5656](https://github.com/deepit5656)
-- `intl: ^0.19.0` - Date formatting
-- `google_fonts: ^6.1.0` - Custom fonts
-- `image_picker: ^1.0.7` - Image selection
-- `share_plus: ^7.2.1` - Share functionality
-
-## 🗄️ Firestore Collections
-
-### Users
-```json
-{
-  "id": "string",
-  "email": "string",
-  "name": "string",
-  "role": "admin|user",
-  "createdAt": "timestamp"
-}
+```bash
+flutter pub get
 ```
 
-### Sports
-```json
-{
-  "id": "string",
-  "name": "string",
-  "icon": "string",
-  "description": "string",
-  "createdAt": "timestamp"
-}
+### 3. Firebase setup
+
+This project already contains Firebase wiring files:
+
+- android/app/google-services.json
+- lib/firebase_options.dart
+
+If you need to reconfigure Firebase for your own project, run FlutterFire configure and regenerate options.
+
+### 4. Run the app
+
+```bash
+flutter run
 ```
 
-### Teams
-```json
-{
-  "id": "string",
-  "name": "string",
-  "department": "string",
-  "logo": "string",
-  "players": ["string"],
-  "createdAt": "timestamp"
-}
+Run on web:
+
+```bash
+flutter run -d chrome
 ```
 
-### Matches
-```json
-{
-  "id": "string",
-  "sportId": "string",
-  "team1Id": "string",
-  "team2Id": "string",
-  "dateTime": "timestamp",
-  "venue": "string",
-  "status": "upcoming|live|completed|cancelled",
-  "score": {
-    "team1Id": "number",
-    "team2Id": "number"
-  },
-  "winnerId": "string",
-  "createdAt": "timestamp"
-}
+## App Startup Flow
+
+At launch, the app does the following in main.dart:
+
+1. Initializes Firebase (with timeout handling)
+2. Seeds default sports if the sports collection is empty
+3. Runs additional app initialization for sport configurations
+4. Opens splash screen, then navigates to main screen
+
+## Admin Access Setup
+
+Newly signed-up users are standard users by default.
+
+To grant admin access:
+
+1. Open Firebase Console
+2. Go to Firestore users collection
+3. Find the user document
+4. Set role to admin
+5. Sign out and sign in again in the app
+
+## Quality Commands
+
+Analyze project:
+
+```bash
+flutter analyze
 ```
 
-### Standings
-```json
-{
-  "id": "string",
-  "sportId": "string",
-  "teamId": "string",
-  "played": "number",
-  "won": "number",
-  "lost": "number",
-  "drawn": "number",
-  "points": "number",
-  "goalsFor": "number",
-  "goalsAgainst": "number",
-  "updatedAt": "timestamp"
-}
+Run tests:
+
+```bash
+flutter test
 ```
 
-## 🎨 Color Scheme
+## Troubleshooting
 
-```dart
-Primary Gradient: #667eea → #764ba2 (Purple-Blue)
-Accent Gradient: #f093fb → #f5576c (Pink-Red)
-Success: #4ade80
-Warning: #fbbf24
-Error: #ef4444
-Background Dark: #0f172a
-Card Dark: #1e293b
-Surface Dark: #334155
-Text: #f8fafc
-Text Secondary: #94a3b8
-```
+- Build issues: run flutter clean then flutter pub get
+- Web run issues: verify Firebase web config in lib/firebase_options.dart
+- Auth or data issues: confirm Firestore/Auth are enabled in Firebase project
 
-## 👥 Access Model
+## Notes
 
-### 🌐 Public Access (No Authentication)
-- ✅ View all sports categories
-- ✅ Browse match schedules
-- ✅ Check team standings  
-- ✅ View match details and results
-- ✅ Real-time score updates
-- ❌ No login or account creation needed
-
-### 🔐 Admin Access (Authentication Required)
-- ✅ All public access features
-- ✅ Full CRUD operations on sports, teams, and matches
-- ✅ Update match results and standings
-- ✅ Access to admin dashboard
-- ✅ Secure Firebase authentication
-- 🔑 Login required via Profile tab
-
-## 🔒 Security
-
-The app uses **Firestore Security Rules** to ensure:
-- Public read access for sports data
-- Admin-only write access for data management
-- User data privacy protection
-
-See [FIRESTORE_RULES.md](FIRESTORE_RULES.md) for detailed security configuration.
-
-## 🧪 Testing
-
-### Creating Admin Account
-
-1. **Sign up** through the app
-2. Go to **Firebase Console** → Firestore → users collection
-3. Find your user document
-4. Set `role` field to `"admin"` (lowercase)
-5. **Logout and login** to see admin features
-
-### Test Data
-
-Add sample data using admin panel or see [SAMPLE_DATA.md](SAMPLE_DATA.md) for examples.
-
-## � Screenshots
-
-_Coming soon_
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 👤 Author
-
-**deepit5656**
-- GitHub: [@deepit5656](https://github.com/deepit5656)
-
----
-
-**Made with Flutter 💙**
+- Package name in pubspec: sports_event_app
+- Display app name in code: Sports Event Manager
