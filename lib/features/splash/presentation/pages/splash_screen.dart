@@ -83,16 +83,55 @@ class _SplashScreenState extends State<SplashScreen> {
                 
                 const SizedBox(height: 50),
                 
-                // Loading Indicator
-                const SizedBox(
-                  width: 40,
-                  height: 40,
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    strokeWidth: 3,
-                  ),
+                // Startup loader
+                Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(30),
+                        border: Border.all(color: Colors.white.withOpacity(0.25)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: List.generate(3, (index) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
+                            )
+                                .animate(onPlay: (controller) => controller.repeat())
+                                .fadeIn(
+                                  duration: const Duration(milliseconds: 450),
+                                  delay: Duration(milliseconds: index * 180),
+                                )
+                                .scale(
+                                  begin: const Offset(0.6, 0.6),
+                                  end: const Offset(1.25, 1.25),
+                                  duration: const Duration(milliseconds: 450),
+                                  delay: Duration(milliseconds: index * 180),
+                                ),
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Loading your sports hub...',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                            letterSpacing: 0.2,
+                          ),
+                    ),
+                  ],
                 )
-                    .animate(onPlay: (controller) => controller.repeat())
+                    .animate()
                     .fadeIn(delay: const Duration(milliseconds: 700)),
               ],
             ),
