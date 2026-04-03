@@ -88,7 +88,17 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<UserModel?> getCurrentUser() async {
     try {
-      final user = _firebaseAuth.currentUser;
+      User? user = _firebaseAuth.currentUser;
+      
+      // On web, currentUser might be null immediately after reload. Wait for authState to resolve.
+      if (user == null) {
+        try {
+          user = await _firebaseAuth.authStateChanges().first.timeout(const Duration(milliseconds: 1500));
+        } catch (_) {
+          // Timeout reached, assume user is null
+        }
+      }
+
       if (user == null) return null;
 
       final userDoc = await _firestore.collection('users').doc(user.uid).get();

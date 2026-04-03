@@ -12,6 +12,7 @@ import 'core/services/default_sports_service.dart';
 import 'core/services/app_initialization_service.dart';
 import 'core/repositories/sport_config_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/auth/presentation/bloc/auth_event.dart';
 import 'features/auth/data/repositories/auth_repository_impl.dart';
 import 'features/splash/presentation/pages/splash_screen.dart';
 
@@ -76,7 +77,7 @@ class MyApp extends StatelessWidget {
         BlocProvider(
           create: (context) => AuthBloc(
             authRepository: AuthRepositoryImpl(),
-          ),
+          )..add(AuthCheckRequested()),
         ),
       ],
       child: Consumer<ThemeProvider>(
